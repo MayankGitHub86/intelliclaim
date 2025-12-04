@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IntelliClaim Backend Tester</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0066FF 0%, #8B5CF6 50%, #667eea 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #0066FF, #8B5CF6);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f9fafb;
+    }
+    
+    .section h2 {
+      margin-bottom: 16px;
+      color: #1f2937;
+    }
+    
+    .test-group {
+      margin-bottom: 20px;
+    }
+    
+    .test-group h3 {
+      margin-bottom: 12px;
+      color: #374151;
+      font-size: 1.1rem;
+    }
+    
+    .button {
+      background: #0066FF;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      margin: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .button:hover {
+      background: #0052cc;
+      transform: translateY(-1px);
+    }
+    
+    .button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .button.success {
+      background: #10b981;
+    }
+    
+    .button.link {
+      background: #8b5cf6;
+    }
+    
+    .result {
+      margin: 12px 0;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    
+    .result.success {
+      background: #f0fdf4;
+      border-color: #22c55e;
+      color: #15803d;
+    }
+    
+    .result.error {
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #dc2626;
+    }
+    
+    .result pre {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 4px;
+      overflow: auto;
+      max-height: 200px;
+      margin-top: 8px;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 16px;
+      background: #f0f9ff;
+      border-radius: 8px;
+      border: 1px solid #0ea5e9;
+    }
+    
+    .quick-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    
+    .quick-links a {
+      padding: 8px 12px;
+      background: #3b82f6;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+    
+    .quick-links a:hover {
+      background: #2563eb;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧪 IntelliClaim Backend Tester</h1>
+      <p>Test and verify your Docker backend services</p>
+    </div>
+    
+    <div class="content">
+      <div class="status">
+        <strong>🎯 Backend URL:</strong> http://localhost:8000
+        <span style="margin-left: auto;">
+          <strong>Status:</strong> <span id="overall-status">Ready to test</span>
+        </span>
+      </div>
+      
+      <div class="section">
+        <h2>Core Backend Services</h2>
+        
+        <div class="test-group">
+          <h3>API Health & Status</h3>
+          <button class="button" onclick="testEndpoint('health', '/health')">🩺 Test Health Check</button>
+          <button class="button" onclick="testEndpoint('root', '/')">🏠 Test Root Endpoint</button>
+          <div id="result-health"></div>
+          <div id="result-root"></div>
+        </div>
+        
+        <div class="test-group">
+          <h3>API Documentation</h3>
+          <button class="button" onclick="testEndpoint('docs', '/docs')">📚 Test API Docs</button>
+          <button class="button link" onclick="window.open('http://localhost:8000/docs', '_blank')">🚀 Open API Docs</button>
+          <div id="result-docs"></div>
+        </div>
+        
+        <div class="test-group">
+          <h3>Future Endpoints (Will be implemented)</h3>
+          <button class="button" onclick="testEndpoint('auth', '/api/v1/auth/test')">🔐 Test Auth</button>
+          <button class="button" onclick="testEndpoint('claims', '/api/v1/claims')">📋 Test Claims</button>
+          <button class="button" onclick="testEndpoint('documents', '/api/v1/documents')">📄 Test Documents</button>
+          <div id="result-auth"></div>
+          <div id="result-claims"></div>
+          <div id="result-documents"></div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Backend Infrastructure Summary</h2>
+        <div style="font-size: 14px; line-height: 1.6;">
+          <p><strong>🐳 Docker Services:</strong> FastAPI, PostgreSQL 15, Redis 7</p>
+          <p><strong>🤖 AI Services:</strong> OpenAI, Pinecone, HuggingFace (configured)</p>
+          <p><strong>🔒 Security:</strong> JWT tokens, bcrypt encryption</p>
+          <p><strong>📊 Database:</strong> PostgreSQL with auto-migration</p>
+          <p><strong>⚡ Cache:</strong> Redis for sessions and caching</p>
+        </div>
+        
+        <div class="quick-links">
+          <a href="http://localhost:8000/health" target="_blank">💓 Health Check</a>
+          <a href="http://localhost:8000/docs" target="_blank">📚 API Documentation</a>
+          <a href="http://localhost:8000/" target="_blank">🏠 API Root</a>
+          <a href="http://localhost:8000/redoc" target="_blank">📖 ReDoc</a>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Quick Actions</h2>
+        <button class="button success" onclick="testAllServices()">🚀 Test All Services</button>
+        <button class="button" onclick="clearResults()">🗑️ Clear Results</button>
+        <button class="button" onclick="location.reload()">🔄 Refresh Page</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="loading" class="loading" style="display: none;">
+    <div class="spinner"></div>
+    Testing...
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+    let isLoading = false;
+
+    async function testEndpoint(name, endpoint) {
+      if (isLoading) return;
+      
+      setLoading(true);
+      
+      try {
+        const response = await fetch(API_BASE + endpoint);
+        let data;
+        
+        try {
+          data = await response.json();
+        } catch {
+          data = await response.text();
+        }
+
+        showResult(name, {
+          success: response.ok,
+          status: response.status,
+          data: data,
+          timestamp: new Date().toLocaleTimeString()
+        });
+
+      } catch (error) {
+        showResult(name, {
+          success: false,
+          error: error.message,
+          timestamp: new Date().toLocaleTimeString()
+        });
+      }
+      
+      setLoading(false);
+    }
+
+    function showResult(name, result) {
+      const resultDiv = document.getElementById(`result-${name}`);
+      if (!resultDiv) return;
+
+      const className = result.success ? 'success' : 'error';
+      const icon = result.success ? '✅' : '❌';
+      const status = result.success ? 'SUCCESS' : 'FAILED';
+
+      let content = `
+        <div class="result ${className}">
+          <div style="font-weight: bold; margin-bottom: 8px;">
+            ${icon} ${status} - ${result.timestamp}
+          </div>
+      `;
+
+      if (result.success) {
+        content += `<pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+      } else {
+        content += `<div>Error: ${result.error}</div>`;
+      }
+
+      content += '</div>';
+      resultDiv.innerHTML = content;
+    }
+
+    async function testAllServices() {
+      const tests = [
+        ['health', '/health'],
+        ['root', '/'],
+        ['docs', '/docs'],
+        ['auth', '/api/v1/auth/test'],
+        ['claims', '/api/v1/claims'],
+        ['documents', '/api/v1/documents']
+      ];
+
+      for (const [name, endpoint] of tests) {
+        await testEndpoint(name, endpoint);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+      }
+    }
+
+    function clearResults() {
+      const results = document.querySelectorAll('[id^="result-"]');
+      results.forEach(div => div.innerHTML = '');
+      document.getElementById('overall-status').textContent = 'Ready to test';
+    }
+
+    function setLoading(loading) {
+      isLoading = loading;
+      const loadingDiv = document.getElementById('loading');
+      const buttons = document.querySelectorAll('.button');
+      
+      if (loading) {
+        loadingDiv.style.display = 'block';
+        buttons.forEach(btn => btn.disabled = true);
+      } else {
+        loadingDiv.style.display = 'none';
+        buttons.forEach(btn => btn.disabled = false);
+      }
+    }
+
+    // Test health on page load
+    window.addEventListener('load', () => {
+      setTimeout(() => testEndpoint('health', '/health'), 1000);
+    });
+  </script>
+</body>
+</html>

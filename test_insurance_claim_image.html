@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Claim Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-section {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+        }
+        .field {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .label {
+            font-weight: bold;
+            min-width: 150px;
+            margin-right: 10px;
+        }
+        .value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            min-height: 20px;
+        }
+        .signature-box {
+            border: 2px solid #000;
+            height: 80px;
+            width: 200px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-style: italic;
+            background: #f9f9f9;
+        }
+        .damage-photo {
+            border: 2px solid #000;
+            height: 150px;
+            width: 200px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e0e0;
+            font-style: italic;
+        }
+        .stamp {
+            border: 3px solid red;
+            color: red;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            transform: rotate(-15deg);
+            display: inline-block;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AUTOMOBILE INSURANCE CLAIM FORM</h1>
+        <h2>SafeGuard Insurance Company</h2>
+        <p>Phone: 1-800-CLAIMS | Email: claims@safeguard.com</p>
+    </div>
+
+    <div class="form-section">
+        <h3>CLAIM INFORMATION</h3>
+        <div class="field">
+            <span class="label">Claim Number:</span>
+            <span class="value">CLM-2025-VEH-4567</span>
+        </div>
+        <div class="field">
+            <span class="label">Date of Loss:</span>
+            <span class="value">September 20, 2025</span>
+        </div>
+        <div class="field">
+            <span class="label">Time of Loss:</span>
+            <span class="value">2:30 PM</span>
+        </div>
+        <div class="field">
+            <span class="label">Location:</span>
+            <span class="value">Main Street & Oak Avenue, Downtown</span>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>POLICYHOLDER INFORMATION</h3>
+        <div class="field">
+            <span class="label">Policy Number:</span>
+            <span class="value">POL-AUTO-789123</span>
+        </div>
+        <div class="field">
+            <span class="label">Name:</span>
+            <span class="value">Michael Johnson</span>
+        </div>
+        <div class="field">
+            <span class="label">Phone:</span>
+            <span class="value">(555) 123-4567</span>
+        </div>
+        <div class="field">
+            <span class="label">Email:</span>
+            <span class="value">mjohnson@email.com</span>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>VEHICLE INFORMATION</h3>
+        <div class="field">
+            <span class="label">Year/Make/Model:</span>
+            <span class="value">2023 Honda Accord LX</span>
+        </div>
+        <div class="field">
+            <span class="label">VIN:</span>
+            <span class="value">1HGCV1F30NA123456</span>
+        </div>
+        <div class="field">
+            <span class="label">License Plate:</span>
+            <span class="value">ABC-1234</span>
+        </div>
+        <div class="field">
+            <span class="label">Estimated Damage:</span>
+            <span class="value">$6,750.00</span>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>INCIDENT DESCRIPTION</h3>
+        <p><strong>Description of Loss:</strong></p>
+        <p>Vehicle was struck from behind while stopped at red light. Other driver failed to stop in time due to wet road conditions. Rear bumper, trunk, and taillights sustained significant damage. No injuries reported.</p>
+        
+        <p><strong>Police Report Filed:</strong> Yes - Report #2025-09-20-456</p>
+        <p><strong>Other Driver Info:</strong> Sarah Williams, Policy: XYZ-456789</p>
+    </div>
+
+    <div class="form-section">
+        <h3>DAMAGE ASSESSMENT</h3>
+        <div class="damage-photo">
+            [PHOTO: Rear bumper damage]
+            Severe impact damage
+            Bumper cracked and displaced
+            Trunk alignment affected
+        </div>
+        
+        <p><strong>Repair Shop:</strong> Downtown Auto Repair</p>
+        <p><strong>Estimate Date:</strong> September 21, 2025</p>
+        <p><strong>Labor Hours:</strong> 12 hours @ $85/hour</p>
+        <p><strong>Parts Cost:</strong> $5,730</p>
+        <p><strong>Total Estimate:</strong> $6,750</p>
+    </div>
+
+    <div class="form-section">
+        <h3>SIGNATURES & APPROVALS</h3>
+        <div class="field">
+            <span class="label">Claimant Signature:</span>
+            <div class="signature-box">Michael Johnson</div>
+        </div>
+        <div class="field">
+            <span class="label">Date Signed:</span>
+            <span class="value">September 22, 2025</span>
+        </div>
+        
+        <div class="stamp">
+            RECEIVED
+            SEP 22 2025
+            CLAIMS DEPT
+        </div>
+        
+        <div class="field">
+            <span class="label">Adjuster:</span>
+            <span class="value">Jennifer Smith, License #ADJ-2024-789</span>
+        </div>
+        <div class="field">
+            <span class="label">Status:</span>
+            <span class="value">APPROVED FOR PAYMENT</span>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #666;">
+        Form #IC-AUTO-2025 | SafeGuard Insurance Company | Confidential Document
+    </div>
+</body>
+</html>

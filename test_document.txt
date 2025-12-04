@@ -1,0 +1,32 @@
+MEDICAL INSURANCE CLAIM FORM
+
+Patient Information:
+Name: John Smith
+Policy Number: INS123456789
+Date of Birth: 01/15/1980
+Address: 123 Main Street, Anytown, ST 12345
+
+Medical Provider:
+Hospital: City General Hospital
+Provider: Dr. Sarah Johnson
+Date of Service: September 20, 2025
+Diagnosis: Acute appendicitis
+Procedure: Appendectomy
+Treatment Cost: $15,500
+
+Claim Details:
+Claim Number: CLM-2025-09-001
+Total Amount: $15,500.00
+Deductible: $1,000.00
+Coverage: 80%
+Patient Responsibility: $3,900.00
+Insurance Payment: $11,600.00
+
+Signatures:
+Patient Signature: [Signed] John Smith
+Date: 09/20/2025
+Provider Signature: [Signed] Dr. Sarah Johnson
+Date: 09/20/2025
+
+This claim is submitted for reimbursement under policy INS123456789.
+All information provided is accurate and complete.

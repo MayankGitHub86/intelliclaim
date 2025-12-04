@@ -1,0 +1,25 @@
+INSURANCE CLAIM REPORT
+
+Claim Number: CLM-2025-002
+Date of Incident: April 2, 2025
+Policy Holder: Maria Rodriguez
+Policy Number: POL-123789
+
+INCIDENT DETAILS:
+The insured experienced water damage to their home due to a burst pipe in the kitchen. The incident occurred during the night while the family was sleeping. Damage assessment includes:
+- Kitchen flooring completely saturated (hardwood)
+- Lower kitchen cabinets water damaged
+- Drywall in adjacent living room affected
+- Electronic appliances (dishwasher, refrigerator) potentially damaged
+
+ESTIMATED REPAIR COST: $12,800
+
+SUPPORTING DOCUMENTATION:
+- Plumber's assessment report
+- Photos showing extent of water damage
+- Emergency mitigation service receipts
+- Humidity readings and moisture detection reports
+
+CLAIM STATUS: Under Review
+ADJUSTOR: Michael Chen
+APPROVAL RECOMMENDATION: Requires further investigation - potential negligence in maintenance

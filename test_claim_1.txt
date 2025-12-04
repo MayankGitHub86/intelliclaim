@@ -1,0 +1,25 @@
+INSURANCE CLAIM REPORT
+
+Claim Number: CLM-2025-001
+Date of Incident: March 15, 2025
+Policy Holder: John Smith
+Policy Number: POL-789456
+
+INCIDENT DETAILS:
+The insured vehicle (2022 Toyota Camry) was involved in a rear-end collision at the intersection of Main Street and Oak Avenue. The damage to the vehicle includes:
+- Rear bumper completely destroyed
+- Trunk damage affecting structural integrity
+- Rear taillight assembly damaged
+- Minor paint scratches on left side
+
+ESTIMATED REPAIR COST: $4,500
+
+SUPPORTING DOCUMENTATION:
+- Police report filed
+- Photos of damage attached
+- Witness statements collected
+- Towing receipt included
+
+CLAIM STATUS: Under Review
+ADJUSTOR: Sarah Johnson
+APPROVAL RECOMMENDATION: Approve for full amount - clear liability case
