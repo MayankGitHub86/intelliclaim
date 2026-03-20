@@ -9,6 +9,7 @@ export const API_CONFIG = {
     AUTH: {
       REGISTER: '/api/v1/auth/register',
       LOGIN: '/api/v1/auth/login',
+      GOOGLE_LOGIN: '/api/v1/auth/google',
       LOGOUT: '/api/v1/auth/logout',
       ME: '/api/v1/auth/me',
       REFRESH: '/api/v1/auth/refresh'

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -89,11 +89,98 @@ export function WorkflowBuilder() {
 
   const [selectedNode, setSelectedNode] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [workflowName, setWorkflowName] = useState('Claim Processing Workflow');
   const [workflowDescription, setWorkflowDescription] = useState('Automated claim processing with AI analysis');
   const [availableWorkflows, setAvailableWorkflows] = useState([]);
   const [loading, setLoading] = useState(false);
   const canvasRef = useRef(null);
+
+  // Handle node dragging
+  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    setIsDragging(true);
+    setDraggedNode(nodeId);
+    setDragOffset({
+      x: e.clientX - node.x,
+      y: e.clientY - node.y
+    });
+    e.stopPropagation();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !draggedNode) return;
+    
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    if (!canvasRect) return;
+    
+    const newX = e.clientX - canvasRect.left - dragOffset.x;
+    const newY = e.clientY - canvasRect.top - dragOffset.y;
+    
+    setNodes(prevNodes =>
+      prevNodes.map(node =>
+        node.id === draggedNode
+          ? { ...node, x: Math.max(0, newX), y: Math.max(0, newY) }
+          : node
+      )
+    );
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDraggedNode(null);
+  };
+
+  // Delete selected node
+  const handleDeleteNode = () => {
+    if (!selectedNode) return;
+    
+    setNodes(prevNodes => {
+      // Remove the node
+      const filtered = prevNodes.filter(n => n.id !== selectedNode);
+      
+      // Remove connections to this node
+      return filtered.map(node => ({
+        ...node,
+        connections: node.connections.filter(id => id !== selectedNode)
+      }));
+    });
+    
+    setSelectedNode(null);
+    toast.success('Node deleted successfully');
+  };
+
+  // Duplicate selected node
+  const handleDuplicateNode = () => {
+    if (!selectedNode) return;
+    
+    const nodeToDuplicate = nodes.find(n => n.id === selectedNode);
+    if (!nodeToDuplicate) return;
+    
+    const newNode = {
+      ...nodeToDuplicate,
+      id: `${Date.now()}`,
+      x: nodeToDuplicate.x + 50,
+      y: nodeToDuplicate.y + 50,
+      connections: []
+    };
+    
+    setNodes(prevNodes => [...prevNodes, newNode]);
+    setSelectedNode(newNode.id);
+    toast.success('Node duplicated successfully');
+  };
+
+  // Update node title
+  const handleUpdateNodeTitle = (nodeId: string, newTitle: string) => {
+    setNodes(prevNodes =>
+      prevNodes.map(node =>
+        node.id === nodeId ? { ...node, title: newTitle } : node
+      )
+    );
+  };
 
   // Load existing workflows
   useEffect(() => {
@@ -149,7 +236,7 @@ export function WorkflowBuilder() {
   const handleLoadWorkflow = async (workflowId: string) => {
     try {
       const workflow = await apiClient.get(
-        API_CONFIG.ENDPOINTS.WORKFLOWS.GET.replace(':id', workflowId)
+        API_CONFIG.ENDPOINTS.WORKFLOWS.GET(workflowId)
       );
       
       setNodes(workflow.nodes || []);
@@ -274,9 +361,13 @@ export function WorkflowBuilder() {
 
         {/* Actions */}
         <div className="p-4 border-t border-border/50 space-y-2">
-          <Button className="w-full bg-gradient-to-r from-[#0066FF] to-[#8B5CF6]">
+          <Button 
+            className="w-full bg-gradient-to-r from-[#0066FF] to-[#8B5CF6]"
+            onClick={handleSaveWorkflow}
+            disabled={loading}
+          >
             <Save className="w-4 h-4 mr-2" />
-            Save Workflow
+            {loading ? 'Saving...' : 'Save Workflow'}
           </Button>
           <div className="grid grid-cols-3 gap-2">
             <Button variant="outline" size="sm">
@@ -306,7 +397,12 @@ export function WorkflowBuilder() {
               <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Add Node</span>
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleDeleteNode}
+              disabled={!selectedNode}
+            >
               <Trash2 className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Delete</span>
             </Button>
@@ -335,6 +431,9 @@ export function WorkflowBuilder() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
         >
           {/* Scrollable content wrapper */}
           <div className="relative min-w-[1200px] min-h-[800px] w-full h-full">
@@ -375,13 +474,14 @@ export function WorkflowBuilder() {
           {nodes.map((node, index) => (
             <motion.div
               key={node.id}
-              className={`absolute w-30 cursor-pointer ${selectedNode === node.id ? 'z-20' : 'z-10'}`}
+              className={`absolute w-30 cursor-move ${selectedNode === node.id ? 'z-20' : 'z-10'}`}
               style={{ left: node.x, top: node.y }}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ scale: 1.05, y: -2 }}
               onClick={() => setSelectedNode(node.id)}
+              onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
             >
               <Card className={`w-30 bg-gradient-to-br ${getNodeColor(node.type)} text-white border-none shadow-lg hover:shadow-xl transition-all duration-200 ${
                 selectedNode === node.id ? 'ring-2 ring-white ring-opacity-50' : ''
@@ -425,6 +525,7 @@ export function WorkflowBuilder() {
                     <label className="text-sm font-medium mb-2 block">Node Title</label>
                     <Input 
                       value={nodes.find(n => n.id === selectedNode)?.title || ''} 
+                      onChange={(e) => handleUpdateNodeTitle(selectedNode, e.target.value)}
                       placeholder="Enter node title..."
                     />
                   </div>
@@ -445,11 +546,21 @@ export function WorkflowBuilder() {
                   </div>
 
                   <div className="flex space-x-2 pt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={handleDuplicateNode}
+                    >
                       <Copy className="w-4 h-4 mr-2" />
                       Duplicate
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={handleDeleteNode}
+                    >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
                     </Button>

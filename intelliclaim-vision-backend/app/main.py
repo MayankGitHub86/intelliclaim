@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Load environment variables
 load_dotenv()
@@ -21,6 +23,9 @@ from .document_processor import document_processor
 
 # Import demo routes
 from .api.demo import router as demo_router
+
+# Import chat routes
+from .api.chat import router as chat_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +53,7 @@ security = HTTPBearer()
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")  # Add your Google Client ID to .env
 
 # Pydantic Models
 class UserCreate(BaseModel):
@@ -60,6 +66,12 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class GoogleLoginRequest(BaseModel):
+    credential: str
+    email: str
+    name: str
+    picture: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str
@@ -229,6 +241,83 @@ async def login(login_data: UserLogin):
             "role": user["role"]
         }
     }
+
+@app.post("/api/v1/auth/google")
+async def google_login(google_data: GoogleLoginRequest):
+    try:
+        # Verify the Google token (optional but recommended for production)
+        if GOOGLE_CLIENT_ID:
+            try:
+                idinfo = id_token.verify_oauth2_token(
+                    google_data.credential, 
+                    google_requests.Request(), 
+                    GOOGLE_CLIENT_ID
+                )
+                
+                # Verify the token is for our app
+                if idinfo['aud'] != GOOGLE_CLIENT_ID:
+                    raise HTTPException(status_code=401, detail="Invalid token audience")
+                    
+            except ValueError as e:
+                logging.warning(f"Google token verification failed: {str(e)}")
+                # Continue anyway for development, but log the warning
+        
+        # Check if user exists
+        user = None
+        for u in users_db.values():
+            if u["email"] == google_data.email:
+                user = u
+                break
+        
+        # If user doesn't exist, create a new one
+        if not user:
+            user_id = str(uuid.uuid4())
+            # Generate a random password for Google users (they won't use it)
+            random_password = str(uuid.uuid4())
+            hashed_password = hash_password(random_password)
+            
+            user = {
+                "id": user_id,
+                "name": google_data.name,
+                "email": google_data.email,
+                "password_hash": hashed_password,
+                "company": "Google User",
+                "role": "user",
+                "google_id": google_data.email,  # Store Google identifier
+                "picture": google_data.picture,
+                "auth_provider": "google",
+                "created_at": datetime.utcnow()
+            }
+            
+            users_db[user_id] = user
+            logging.info(f"New Google user created: {google_data.email}")
+        else:
+            # Update user's picture if provided
+            if google_data.picture:
+                user["picture"] = google_data.picture
+            logging.info(f"Existing Google user logged in: {google_data.email}")
+        
+        # Create JWT token
+        token = create_jwt_token(user["id"])
+        
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+                "company": user.get("company"),
+                "role": user["role"],
+                "picture": user.get("picture")
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Google authentication error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
@@ -519,6 +608,9 @@ async def update_profile_settings(
 
 # Include demo routes for presentation
 app.include_router(demo_router, prefix="/api/v1/demo", tags=["demo"])
+
+# Include chat routes
+app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
 
 if __name__ == "__main__":
     import uvicorn

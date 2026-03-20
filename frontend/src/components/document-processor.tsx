@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -125,7 +125,7 @@ export function DocumentProcessor() {
     setShowDetails(true);
   };
 
-  // Handle PDF export
+  // Handle PDF export with professional formatting
   const handleExportPDF = () => {
     if (!result) {
       toast.error('No analysis result to export');
@@ -135,101 +135,312 @@ export function DocumentProcessor() {
     try {
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 20;
       let yPosition = margin;
-
-      // Header
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('INTELLICLAIM ANALYSIS REPORT', margin, yPosition);
-      yPosition += 15;
-
-      // Line separator
-      pdf.setLineWidth(0.5);
-      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 15;
-
-      // Document info
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Document: ${selectedFile?.name || 'Unnamed Document'}`, margin, yPosition);
-      yPosition += 8;
-      pdf.text(`Analysis Date: ${new Date().toLocaleDateString()}`, margin, yPosition);
-      yPosition += 8;
-      pdf.text(`Analysis ID: ${result.analysisId || 'N/A'}`, margin, yPosition);
-      yPosition += 15;
-
-      // Decision section
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ANALYSIS DECISION', margin, yPosition);
-      yPosition += 10;
-
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Decision: ${result.decision}`, margin, yPosition);
-      yPosition += 8;
-      pdf.text(`Amount: ${formatIndianRupees(result.amount)}`, margin, yPosition);
-      yPosition += 8;
-      pdf.text(`Confidence: ${confidence}%`, margin, yPosition);
-      yPosition += 15;
-
-      // Justification section
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('JUSTIFICATION', margin, yPosition);
-      yPosition += 10;
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      const splitJustification = pdf.splitTextToSize(result.justification, pageWidth - 2 * margin);
-      pdf.text(splitJustification, margin, yPosition);
-      yPosition += splitJustification.length * 5 + 10;
-
-      // Coverage details
-      if (result.coverageDetails && result.coverageDetails.length > 0) {
-        // Check if we need a new page
-        if (yPosition > 250) {
+      
+      // Helper function to check if we need a new page
+      const checkNewPage = (requiredSpace: number = 20) => {
+        if (yPosition + requiredSpace > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin;
+          return true;
         }
-
-        pdf.setFontSize(14);
+        return false;
+      };
+      
+      // Helper function to add section header
+      const addSectionHeader = (title: string) => {
+        checkNewPage(25);
+        pdf.setFillColor(0, 102, 255); // Blue background
+        pdf.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+        pdf.setTextColor(255, 255, 255); // White text
+        pdf.setFontSize(12);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('COVERAGE BREAKDOWN', margin, yPosition);
-        yPosition += 10;
-
+        pdf.text(title, margin + 5, yPosition + 7);
+        pdf.setTextColor(0, 0, 0); // Reset to black
+        yPosition += 15;
+      };
+      
+      // Helper function to add key-value pair
+      const addKeyValue = (key: string, value: string, bold: boolean = false) => {
+        checkNewPage();
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`${key}:`, margin, yPosition);
+        pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+        const keyWidth = pdf.getTextWidth(`${key}: `);
+        pdf.text(value, margin + keyWidth, yPosition);
+        yPosition += 6;
+      };
+      
+      // ===== HEADER =====
+      pdf.setFillColor(0, 102, 255);
+      pdf.rect(0, 0, pageWidth, 35, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('INTELLICLAIM', margin, 15);
+      
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Insurance Claim Analysis Report', margin, 25);
+      
+      pdf.setTextColor(0, 0, 0);
+      yPosition = 45;
+      
+      // ===== DOCUMENT INFORMATION =====
+      addSectionHeader('DOCUMENT INFORMATION');
+      
+      addKeyValue('Document Name', selectedFile?.name || 'Unnamed Document');
+      addKeyValue('Analysis Date', new Date().toLocaleString('en-US', { 
+        dateStyle: 'full', 
+        timeStyle: 'short' 
+      }));
+      addKeyValue('Report ID', result.analysisId || `RPT-${Date.now()}`);
+      addKeyValue('Analysis Model', result.model_used || 'IntelliClaim AI');
+      yPosition += 5;
+      
+      // ===== EXECUTIVE SUMMARY =====
+      if (result.executive_summary) {
+        addSectionHeader('EXECUTIVE SUMMARY');
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'normal');
+        const summaryLines = pdf.splitTextToSize(result.executive_summary, pageWidth - 2 * margin);
+        pdf.text(summaryLines, margin, yPosition);
+        yPosition += summaryLines.length * 5 + 10;
+      }
+      
+      // ===== CLAIM DECISION =====
+      addSectionHeader('CLAIM DECISION');
+      
+      // Decision with color coding
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      const decisionColors = {
+        'APPROVED': [0, 200, 0],
+        'PARTIAL_APPROVAL': [255, 165, 0],
+        'UNDER_REVIEW': [255, 193, 7],
+        'DENIED': [220, 53, 69]
+      };
+      const color = decisionColors[result.decision] || [0, 0, 0];
+      pdf.setTextColor(color[0], color[1], color[2]);
+      pdf.text(`DECISION: ${result.decision}`, margin, yPosition);
+      pdf.setTextColor(0, 0, 0);
+      yPosition += 12;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      addKeyValue('Claim Amount', formatIndianRupees(result.amount), true);
+      addKeyValue('Confidence Score', `${confidence}%`, true);
+      addKeyValue('Risk Assessment', result.risk_assessment || 'MEDIUM');
+      yPosition += 5;
+      
+      // ===== FINANCIAL BREAKDOWN =====
+      if (result.financial_breakdown || result.financial_summary) {
+        addSectionHeader('FINANCIAL BREAKDOWN');
         
-        result.coverageDetails.forEach((item) => {
-          const status = item.covered ? '✓ Covered' : '✗ Not Covered';
-          pdf.text(`• ${item.item}: ${status} - ${formatIndianRupees(item.amount)}`, margin, yPosition);
+        const financial = result.financial_breakdown || result.financial_summary || {};
+        
+        if (financial.total_claimed) addKeyValue('Total Claimed', financial.total_claimed);
+        if (financial.total_approved) addKeyValue('Total Approved', financial.total_approved);
+        if (financial.deductible || financial.deductible_applied) {
+          addKeyValue('Deductible Applied', financial.deductible || financial.deductible_applied);
+        }
+        if (financial.depreciation || financial.depreciation_applied) {
+          addKeyValue('Depreciation', financial.depreciation || financial.depreciation_applied);
+        }
+        if (financial.net_payout) addKeyValue('Net Payout', financial.net_payout, true);
+        yPosition += 5;
+      }
+      
+      // ===== COVERAGE DETAILS =====
+      if (result.coverageDetails && result.coverageDetails.length > 0) {
+        addSectionHeader('COVERAGE BREAKDOWN');
+        
+        pdf.setFontSize(9);
+        result.coverageDetails.forEach((item, index) => {
+          checkNewPage(15);
+          
+          const status = item.covered ? '✓' : '✗';
+          const statusColor = item.covered ? [0, 150, 0] : [200, 0, 0];
+          
+          pdf.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(status, margin, yPosition);
+          
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(`${item.item}`, margin + 5, yPosition);
+          
+          pdf.setFont('helvetica', 'bold');
+          const amountText = formatIndianRupees(item.amount);
+          pdf.text(amountText, pageWidth - margin - pdf.getTextWidth(amountText), yPosition);
+          
+          yPosition += 5;
+          
+          if (item.reasoning) {
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'italic');
+            pdf.setTextColor(100, 100, 100);
+            const reasonLines = pdf.splitTextToSize(item.reasoning, pageWidth - 2 * margin - 10);
+            pdf.text(reasonLines, margin + 10, yPosition);
+            yPosition += reasonLines.length * 4 + 3;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(9);
+          }
+        });
+        yPosition += 5;
+      }
+      
+      // ===== DETAILED JUSTIFICATION =====
+      addSectionHeader('DETAILED ANALYSIS & JUSTIFICATION');
+      
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      const justificationLines = pdf.splitTextToSize(
+        result.justification || 'No detailed justification provided.',
+        pageWidth - 2 * margin
+      );
+      
+      justificationLines.forEach((line: string) => {
+        checkNewPage();
+        pdf.text(line, margin, yPosition);
+        yPosition += 5;
+      });
+      yPosition += 5;
+      
+      // ===== INCIDENT ANALYSIS =====
+      if (result.incident_analysis) {
+        addSectionHeader('INCIDENT ANALYSIS');
+        
+        const incident = result.incident_analysis;
+        if (incident.incident_type) addKeyValue('Incident Type', incident.incident_type);
+        if (incident.incident_date) addKeyValue('Incident Date', incident.incident_date);
+        if (incident.reported_date) addKeyValue('Reported Date', incident.reported_date);
+        if (incident.location) addKeyValue('Location', incident.location);
+        if (incident.cause_of_loss) {
+          checkNewPage(15);
+          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Cause of Loss:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont('helvetica', 'normal');
+          const causeLines = pdf.splitTextToSize(incident.cause_of_loss, pageWidth - 2 * margin);
+          pdf.text(causeLines, margin, yPosition);
+          yPosition += causeLines.length * 5 + 5;
+        }
+      }
+      
+      // ===== RISK ASSESSMENT =====
+      if (result.risk_assessment && typeof result.risk_assessment === 'object') {
+        addSectionHeader('RISK ASSESSMENT');
+        
+        const risk = result.risk_assessment;
+        if (risk.overall_risk) addKeyValue('Overall Risk Level', risk.overall_risk);
+        if (risk.fraud_score !== undefined) addKeyValue('Fraud Score', `${risk.fraud_score}/100`);
+        
+        if (risk.fraud_indicators && risk.fraud_indicators.length > 0) {
+          checkNewPage(15);
+          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Fraud Indicators:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont('helvetica', 'normal');
+          risk.fraud_indicators.forEach((indicator: string) => {
+            checkNewPage();
+            pdf.text(`• ${indicator}`, margin + 5, yPosition);
+            yPosition += 5;
+          });
+        }
+        yPosition += 5;
+      }
+      
+      // ===== RECOMMENDATIONS =====
+      if (result.recommendations && result.recommendations.length > 0) {
+        addSectionHeader('RECOMMENDATIONS');
+        
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        result.recommendations.forEach((rec: any, index: number) => {
+          checkNewPage(10);
+          const recText = typeof rec === 'string' ? rec : rec.action || rec;
+          pdf.text(`${index + 1}. ${recText}`, margin, yPosition);
           yPosition += 6;
         });
-        yPosition += 10;
-      }
-
-      // Footer
-      if (yPosition > 280) {
-        pdf.addPage();
-        yPosition = margin;
+        yPosition += 5;
       }
       
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Processing Time: ${result.processingTime || 'N/A'}`, margin, yPosition);
-      yPosition += 6;
-      pdf.text(`Generated by IntelliClaim AI - ${new Date().toISOString()}`, margin, yPosition);
+      // ===== RED FLAGS =====
+      if (result.red_flags && result.red_flags.length > 0) {
+        addSectionHeader('RED FLAGS & CONCERNS');
+        
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(200, 0, 0);
+        result.red_flags.forEach((flag: any) => {
+          checkNewPage(10);
+          const flagText = typeof flag === 'string' ? flag : flag.flag || flag;
+          pdf.text(`⚠ ${flagText}`, margin, yPosition);
+          yPosition += 6;
+        });
+        pdf.setTextColor(0, 0, 0);
+        yPosition += 5;
+      }
+      
+      // ===== ADJUSTER NOTES =====
+      if (result.adjuster_notes) {
+        addSectionHeader('ADJUSTER NOTES');
+        
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'italic');
+        const notesLines = pdf.splitTextToSize(result.adjuster_notes, pageWidth - 2 * margin);
+        notesLines.forEach((line: string) => {
+          checkNewPage();
+          pdf.text(line, margin, yPosition);
+          yPosition += 5;
+        });
+        yPosition += 5;
+      }
+      
+      // ===== FOOTER ON EVERY PAGE =====
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        
+        // Footer line
+        pdf.setLineWidth(0.5);
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+        
+        // Footer text
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(
+          `IntelliClaim AI Analysis Report | Generated: ${new Date().toLocaleString()}`,
+          margin,
+          pageHeight - 10
+        );
+        pdf.text(
+          `Page ${i} of ${totalPages}`,
+          pageWidth - margin - 20,
+          pageHeight - 10
+        );
+        pdf.setTextColor(0, 0, 0);
+      }
 
-      // Save the PDF
-      const fileName = `IntelliClaim_Analysis_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Save the PDF with descriptive filename
+      const timestamp = new Date().toISOString().split('T')[0];
+      const decision = result.decision || 'ANALYSIS';
+      const fileName = `IntelliClaim_${decision}_${timestamp}_${result.analysisId || Date.now()}.pdf`;
       pdf.save(fileName);
       
-      toast.success('PDF report exported successfully!');
+      toast.success('Professional PDF report exported successfully!');
     } catch (error) {
       console.error('PDF Export failed:', error);
-      toast.error('Failed to export PDF report');
+      toast.error('Failed to export PDF report. Please try again.');
     }
   };
 

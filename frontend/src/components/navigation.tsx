@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from './ui/badge';
 import { useTheme } from './theme-provider';
-import { 
+import {
   Brain,
   FileText,
   Workflow,
@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -70,6 +71,12 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
       id: 'vision',
       label: 'Vision',
       icon: <Eye className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />,
+      badge: null
+    },
+    {
+      id: 'accident-analyzer',
+      label: 'Claim Analyzer',
+      icon: <Camera className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />,
       badge: 'NEW'
     },
     {
@@ -145,7 +152,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
               </button>
             </motion.div>
           )}
-          
+
           <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-[#00FF88]/10 to-[#00D4AA]/10 border border-[#00FF88]/20 rounded-lg">
             <div className="w-2 h-2 bg-[#00FF88] rounded-full animate-pulse" />
             <span className="text-sm font-medium">AI Systems Active</span>
@@ -169,11 +176,10 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
           <motion.button
             key={item.id}
             onClick={() => handlePageChange(item.id)}
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center px-2 py-3' : 'space-x-3 px-4 py-3'} rounded-xl text-left transition-all duration-200 ${
-              currentPage === item.id
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center px-2 py-3' : 'space-x-3 px-4 py-3'} rounded-xl text-left transition-all duration-200 ${currentPage === item.id
                 ? 'bg-gradient-to-r from-[#0066FF]/10 to-[#8B5CF6]/10 border border-[#0066FF]/20 text-[#0066FF] dark:text-[#06B6D4]'
                 : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
             whileHover={{ x: isCollapsed && !isMobile ? 0 : 4 }}
             whileTap={{ scale: 0.98 }}
             title={isCollapsed && !isMobile ? item.label : undefined}
@@ -185,10 +191,10 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
               <>
                 <span className="font-medium flex-1 text-sm">{item.label}</span>
                 {item.badge && (
-                  <Badge 
+                  <Badge
                     variant={item.badge === 'NEW' ? 'default' : 'secondary'}
                     className={
-                      item.badge === 'NEW' 
+                      item.badge === 'NEW'
                         ? 'bg-gradient-to-r from-[#8B5CF6] to-[#06B6D4] text-white px-2 py-1 text-xs'
                         : 'bg-muted text-muted-foreground px-2 py-1 text-xs'
                     }
@@ -315,7 +321,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
             {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
             {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
           </button>
-          
+
           <button
             onClick={() => {
               (onLogout || onBackToLanding)();
@@ -328,7 +334,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
           </button>
         </div>
       )}
-      
+
       {/* Collapsed Controls */}
       {isCollapsed && !isMobile && (
         <div className="p-4 border-t border-border/50 space-y-2">
@@ -339,7 +345,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          
+
           <button
             onClick={() => {
               (onLogout || onBackToLanding)();
@@ -366,7 +372,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
             IntelliClaim
           </h2>
         </div>
-        
+
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 hover:bg-accent rounded-lg transition-colors"
@@ -374,7 +380,7 @@ export function Navigation({ currentPage, onPageChange, onBackToLanding, onLogou
         >
           <Menu className="w-5 h-5" />
         </button>
-        
+
         {/* Mobile Menu Overlay */}
         <AnimatePresence>
           {isMobileMenuOpen && (

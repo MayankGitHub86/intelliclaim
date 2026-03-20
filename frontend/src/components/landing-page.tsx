@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -7,10 +9,10 @@ import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { toast } from 'sonner';
-import { 
-  Brain, 
-  Zap, 
-  Shield, 
+import {
+  Brain,
+  Zap,
+  Shield,
   ArrowRight,
   Eye,
   FileText,
@@ -25,6 +27,8 @@ import {
 import { ThemeToggle } from './ui/theme-toggle';
 import { HeroSection } from './HeroSection';
 import { apiClient, API_CONFIG } from '../config/api';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID_HERE";
 
 const SLIDE_DURATION_MS = 5000;
 
@@ -128,6 +132,45 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
     setShowAuthModal(true);
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      setLoading(true);
+      
+      // Decode the JWT token from Google
+      const decoded: any = jwtDecode(credentialResponse.credential);
+      
+      // Send to backend for verification and user creation/login
+      const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, {
+        credential: credentialResponse.credential,
+        email: decoded.email,
+        name: decoded.name,
+        picture: decoded.picture
+      });
+      
+      // Store the token
+      if (response.access_token) {
+        localStorage.setItem('auth_token', response.access_token);
+        apiClient.setToken(response.access_token);
+        toast.success(`Welcome ${decoded.name}!`);
+        
+        if (onAuthenticated) {
+          onAuthenticated();
+        }
+        setShowAuthModal(false);
+      }
+      
+    } catch (error: any) {
+      console.error('Google authentication error:', error);
+      toast.error(error.message || 'Google authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error('Google Sign-In was cancelled or failed');
+  };
+
   const features = [
     {
       icon: <Brain className="w-8 h-8" />,
@@ -160,20 +203,20 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
   ];
 
   return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50/30 dark:to-blue-950/30 overflow-x-hidden">
       {/* Header */}
-      <motion.header 
-        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-background/98 border-b border-border/50 shadow-lg' 
-            : 'bg-background/95 border-b border-border/30 shadow-sm'
-        }`}
+      <motion.header
+        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${isScrolled
+          ? 'bg-background/98 border-b border-border/50 shadow-lg'
+          : 'bg-background/95 border-b border-border/30 shadow-sm'
+          }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <motion.div 
+          <motion.div
             className="flex items-center space-x-3"
             whileHover={{ scale: 1.05 }}
           >
@@ -184,11 +227,11 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
               IntelliClaim
             </span>
           </motion.div>
-          
+
           <div className="flex items-center space-x-2 sm:space-x-4">
             <ThemeToggle />
             {isAuthenticated ? (
-              <Button 
+              <Button
                 onClick={onEnterApp}
                 className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-sm sm:text-base px-3 sm:px-4"
               >
@@ -200,7 +243,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                 <Button variant="ghost" onClick={() => openAuthModal(true)} className="text-sm sm:text-base px-3 sm:px-4">
                   Login
                 </Button>
-                <Button 
+                <Button
                   onClick={() => openAuthModal(false)}
                   className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-sm sm:text-base px-3 sm:px-4"
                 >
@@ -213,7 +256,9 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
         </div>
       </motion.header>
 
-      <HeroSection 
+      {/* Main content wrapper with top offset to prevent header overlap */}
+      <div className="pt-20">
+        <HeroSection
         onEnterApp={onEnterApp}
         openAuthModal={openAuthModal}
         isAuthenticated={isAuthenticated}
@@ -315,7 +360,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                 whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Card 
+                <Card
                   className={`p-6 h-full bg-background/80 backdrop-blur-sm border-border/50 hover:shadow-xl transition-all duration-300 cursor-pointer ${action.hoverColor} group`}
                   onClick={action.onClick}
                 >
@@ -331,8 +376,8 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                     <p className="text-sm text-muted-foreground dark:text-muted-foreground mb-4 leading-relaxed">
                       {action.description}
                     </p>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       className={`w-full bg-gradient-to-r ${action.gradient} text-white border-0 hover:opacity-90 transition-all duration-200 shadow-md`}
                     >
@@ -425,18 +470,18 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 sm:mb-12 max-w-2xl mx-auto">
               Join thousands of organizations already using IntelliClaim to revolutionize their insurance processing
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-6 h-auto"
                 onClick={onEnterApp}
               >
                 {isAuthenticated ? 'Enter Dashboard' : 'Get Started Free'}
                 <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-6 h-auto"
                 onClick={() => openAuthModal(false)}
@@ -460,7 +505,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
           >
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            
+
             {/* Modal Content */}
             <motion.div
               className="relative w-full max-w-md mx-auto m-4"
@@ -471,7 +516,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
             >
               <Card className="relative bg-white/95 dark:bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-lg" />
-                
+
                 <div className="relative p-6 sm:p-8">
                   {/* Close Button */}
                   <button
@@ -485,21 +530,19 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                   <div className="flex mb-8 mt-2 p-1 bg-muted/50 backdrop-blur-sm rounded-lg">
                     <button
                       onClick={() => setIsLogin(true)}
-                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                        isLogin 
-                          ? 'bg-background text-foreground shadow-lg' 
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${isLogin
+                        ? 'bg-background text-foreground shadow-lg'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Sign In
                     </button>
                     <button
                       onClick={() => setIsLogin(false)}
-                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                        !isLogin 
-                          ? 'bg-background text-foreground shadow-lg' 
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${!isLogin
+                        ? 'bg-background text-foreground shadow-lg'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Sign Up
                     </button>
@@ -618,6 +661,28 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                           </>
                         )}
                       </Button>
+
+                      {/* Divider */}
+                      <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-border"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-4 bg-background text-muted-foreground">Or continue with</span>
+                        </div>
+                      </div>
+
+                      {/* Google Sign-In Button */}
+                      <div className="flex justify-center">
+                        <GoogleLogin
+                          onSuccess={handleGoogleSuccess}
+                          onError={handleGoogleError}
+                          theme="outline"
+                          size="large"
+                          text={isLogin ? "signin_with" : "signup_with"}
+                          width="350"
+                        />
+                      </div>
                     </motion.form>
                   </AnimatePresence>
 
@@ -651,6 +716,8 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
+    </GoogleOAuthProvider>
   );
 }
