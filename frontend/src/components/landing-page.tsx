@@ -6,11 +6,12 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { toast } from 'sonner';
-import { 
-  Brain, 
-  Zap, 
-  Shield, 
+import {
+  Brain,
+  Zap,
+  Shield,
   ArrowRight,
   Eye,
   FileText,
@@ -66,7 +67,37 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google Login failed: No credential received");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, {
+        token: credentialResponse.credential
+      });
+
+      // Store the token
+      if (response.access_token) {
+        localStorage.setItem('auth_token', response.access_token);
+        apiClient.setToken(response.access_token);
+        toast.success("Welcome back to IntelliClaim via Google!");
+        if (onAuthenticated) {
+          onAuthenticated();
+        }
+        setShowAuthModal(false);
+      }
+    } catch (error: any) {
+      console.error('Google Auth error:', error);
+      toast.error(error.message || 'Google Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -162,18 +193,17 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50/30 dark:to-blue-950/30 overflow-x-hidden">
       {/* Header */}
-      <motion.header 
-        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-background/98 border-b border-border/50 shadow-lg' 
-            : 'bg-background/95 border-b border-border/30 shadow-sm'
-        }`}
+      <motion.header
+        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${isScrolled
+          ? 'bg-background/98 border-b border-border/50 shadow-lg'
+          : 'bg-background/95 border-b border-border/30 shadow-sm'
+          }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <motion.div 
+          <motion.div
             className="flex items-center space-x-3"
             whileHover={{ scale: 1.05 }}
           >
@@ -184,11 +214,11 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
               IntelliClaim
             </span>
           </motion.div>
-          
+
           <div className="flex items-center space-x-2 sm:space-x-4">
             <ThemeToggle />
             {isAuthenticated ? (
-              <Button 
+              <Button
                 onClick={onEnterApp}
                 className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-sm sm:text-base px-3 sm:px-4"
               >
@@ -200,7 +230,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                 <Button variant="ghost" onClick={() => openAuthModal(true)} className="text-sm sm:text-base px-3 sm:px-4">
                   Login
                 </Button>
-                <Button 
+                <Button
                   onClick={() => openAuthModal(false)}
                   className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-sm sm:text-base px-3 sm:px-4"
                 >
@@ -213,133 +243,89 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
         </div>
       </motion.header>
 
-      <HeroSection 
+      <HeroSection
         onEnterApp={onEnterApp}
         openAuthModal={openAuthModal}
         isAuthenticated={isAuthenticated}
       />
 
       {/* Our Services Section */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-br from-muted/30 to-background">
-        <div className="container mx-auto max-w-6xl">
+      <section className="py-24 sm:py-32 px-4 sm:px-6 relative overflow-hidden">
+        {/* Decorative background blobs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] -z-10" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[120px] -z-10" />
+
+        <div className="container mx-auto max-w-7xl">
           <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            className="text-center mb-20"
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true, margin: "-100px" }}
           >
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">
-              <span className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] bg-clip-text text-transparent">
-                Our Services
-              </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-bold mb-6 tracking-tight">
+              Future-Proof <span className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] bg-clip-text text-transparent italic">Solutions</span>
             </h2>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-              Discover our comprehensive AI-powered insurance solutions
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
+              We've redesigned insurance processing from the ground up using state-of-the-art neural networks.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
                 icon: <Brain className="w-6 h-6" />,
-                title: 'Smart Analysis',
-                description: 'AI-powered claim analysis',
-                action: 'Try Now',
-                href: '#',
-                gradient: 'from-[#0066FF] to-[#8B5CF6]',
-                hoverColor: 'hover:bg-[#0066FF]/10',
-                onClick: () => {
-                  if (isAuthenticated) {
-                    onEnterApp();
-                  } else {
-                    openAuthModal(false);
-                  }
-                }
+                title: 'Neural Engine',
+                description: 'Deep learning models that understand context and intent.',
+                gradient: 'from-[#0066FF] to-[#8B5CF6]'
               },
               {
                 icon: <Eye className="w-6 h-6" />,
-                title: 'Vision Inspector',
-                description: 'Visual damage assessment',
-                action: 'Explore',
-                href: '#',
-                gradient: 'from-[#8B5CF6] to-[#06B6D4]',
-                hoverColor: 'hover:bg-[#8B5CF6]/10',
-                onClick: () => {
-                  if (isAuthenticated) {
-                    onEnterApp();
-                  } else {
-                    openAuthModal(false);
-                  }
-                }
+                title: 'Vision AI',
+                description: 'Advanced computer vision for instant damage assessment.',
+                gradient: 'from-[#8B5CF6] to-[#06B6D4]'
               },
               {
-                icon: <FileText className="w-6 h-6" />,
-                title: 'Document Processing',
-                description: 'Smart document analysis',
-                action: 'Upload',
-                href: '#',
-                gradient: 'from-[#06B6D4] to-[#00FF88]',
-                hoverColor: 'hover:bg-[#06B6D4]/10',
-                onClick: () => {
-                  if (isAuthenticated) {
-                    onEnterApp();
-                  } else {
-                    openAuthModal(false);
-                  }
-                }
+                icon: <Shield className="w-6 h-6" />,
+                title: 'Fraud Guard',
+                description: 'Statistical classifiers that catch anomalies in real-time.',
+                gradient: 'from-[#06B6D4] to-[#00FF88]'
               },
               {
-                icon: <Workflow className="w-6 h-6" />,
-                title: 'Workflow Builder',
-                description: 'Automate your processes',
-                action: 'Build',
-                href: '#',
-                gradient: 'from-[#00FF88] to-[#FFD700]',
-                hoverColor: 'hover:bg-[#00FF88]/10',
-                onClick: () => {
-                  if (isAuthenticated) {
-                    onEnterApp();
-                  } else {
-                    openAuthModal(false);
-                  }
-                }
+                icon: <Zap className="w-6 h-6" />,
+                title: 'Speed SLA',
+                description: 'Guaranteed processing under 3 seconds per claim.',
+                gradient: 'from-[#00FF88] to-[#FFD700]'
               }
             ].map((action, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                viewport={{ once: true, margin: "-50px" }}
               >
-                <Card 
-                  className={`p-6 h-full bg-background/80 backdrop-blur-sm border-border/50 hover:shadow-xl transition-all duration-300 cursor-pointer ${action.hoverColor} group`}
-                  onClick={action.onClick}
+                <Card
+                  className="p-8 h-full bg-white/10 dark:bg-black/20 backdrop-blur-xl border-white/20 dark:border-white/10 shadow-xl hover:shadow-2xl hover:scale-[1.05] transition-all duration-500 group cursor-pointer overflow-hidden relative"
+                  onClick={() => openAuthModal(false)}
                 >
-                  <div className="text-center">
-                    <div className={`w-12 h-12 mx-auto mb-4 bg-gradient-to-r ${action.gradient} rounded-xl flex items-center justify-center shadow-lg`}>
-                      <div className="text-white drop-shadow-sm">
-                        {action.icon}
-                      </div>
+                  <div className={`w-14 h-14 mb-8 bg-gradient-to-br ${action.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform`}>
+                    <div className="text-white drop-shadow-md">
+                      {action.icon}
                     </div>
-                    <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors text-foreground dark:text-foreground">
-                      {action.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground dark:text-muted-foreground mb-4 leading-relaxed">
-                      {action.description}
-                    </p>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className={`w-full bg-gradient-to-r ${action.gradient} text-white border-0 hover:opacity-90 transition-all duration-200 shadow-md`}
-                    >
-                      {action.action}
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
                   </div>
+                  <h3 className="text-xl font-bold mb-4 text-foreground/90">
+                    {action.title}
+                  </h3>
+                  <p className="text-base text-muted-foreground/80 leading-relaxed mb-6">
+                    {action.description}
+                  </p>
+                  <div className="flex items-center text-sm font-bold text-primary group-hover:translate-x-2 transition-transform">
+                    Learn More <ArrowRight className="w-4 h-4 ml-2" />
+                  </div>
+
+                  {/* Hover decorative element */}
+                  <div className={`absolute -right-4 -bottom-4 w-20 h-20 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-10 rounded-full blur-2xl transition-opacity`} />
                 </Card>
               </motion.div>
             ))}
@@ -425,18 +411,18 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 sm:mb-12 max-w-2xl mx-auto">
               Join thousands of organizations already using IntelliClaim to revolutionize their insurance processing
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-6 h-auto"
                 onClick={onEnterApp}
               >
                 {isAuthenticated ? 'Enter Dashboard' : 'Get Started Free'}
                 <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-6 h-auto"
                 onClick={() => openAuthModal(false)}
@@ -460,7 +446,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
           >
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            
+
             {/* Modal Content */}
             <motion.div
               className="relative w-full max-w-md mx-auto m-4"
@@ -471,7 +457,7 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
             >
               <Card className="relative bg-white/95 dark:bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-lg" />
-                
+
                 <div className="relative p-6 sm:p-8">
                   {/* Close Button */}
                   <button
@@ -485,21 +471,19 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                   <div className="flex mb-8 mt-2 p-1 bg-muted/50 backdrop-blur-sm rounded-lg">
                     <button
                       onClick={() => setIsLogin(true)}
-                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                        isLogin 
-                          ? 'bg-background text-foreground shadow-lg' 
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${isLogin
+                        ? 'bg-background text-foreground shadow-lg'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Sign In
                     </button>
                     <button
                       onClick={() => setIsLogin(false)}
-                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                        !isLogin 
-                          ? 'bg-background text-foreground shadow-lg' 
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${!isLogin
+                        ? 'bg-background text-foreground shadow-lg'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Sign Up
                     </button>
@@ -618,6 +602,28 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
                           </>
                         )}
                       </Button>
+
+                      <div className="relative py-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t border-border/50" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <GoogleLogin
+                          onSuccess={handleGoogleSuccess}
+                          onError={() => {
+                            toast.error("Google Login Failed");
+                          }}
+                          useOneTap
+                          theme="filled_blue"
+                          shape="pill"
+                          width="100%"
+                        />
+                      </div>
                     </motion.form>
                   </AnimatePresence>
 

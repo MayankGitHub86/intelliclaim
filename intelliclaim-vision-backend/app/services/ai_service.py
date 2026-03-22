@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 # AI imports
 import google.generativeai as genai
 import openai
-from openai import OpenAI
+from .ml_models import ic_ml_service
 
 # Load environment variables
 load_dotenv()
@@ -204,9 +204,7 @@ class EnhancedAIService:
             analysis_result["ai_service"] = "gemini_vision"
             analysis_result["file_analyzed"] = os.path.basename(file_path)
             
-            logger.info(f"Gemini vision analysis completed: {analysis_result.get('decision', 'N/A')} with {analysis_result.get('confidence', 'N/A')}% confidence")
-            
-            return analysis_result
+            return self._enrich_with_ml(analysis_result)
             
         except TimeoutError as e:
             logger.error(f"Gemini vision analysis timed out after {self.gemini_timeout_sec}s: {e}")
@@ -266,9 +264,46 @@ class EnhancedAIService:
         analysis_result["model_used"] = self.gemini_model
         analysis_result["ai_service"] = "gemini_text"
         
-        logger.info(f"Gemini text analysis completed: {analysis_result.get('decision', 'N/A')} with {analysis_result.get('confidence', 'N/A')}% confidence")
-        
-        return analysis_result
+        return self._enrich_with_ml(analysis_result)
+
+    def _enrich_with_ml(self, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Helper to enrich AI results with specialized ML model insights"""
+        try:
+            amount_val = 0
+            try:
+                # Clean amount string for ML (e.g., "₹50,000" -> 50000)
+                cleaned_amount = re.sub(r'[^\d.]', '', str(analysis_result.get('amount', '0')))
+                amount_val = float(cleaned_amount) if cleaned_amount else 0
+            except: pass
+
+            # Perform ML Fraud Risk Check
+            ml_fraud_result = ic_ml_service.predict_fraud_risk(
+                amount=amount_val,
+                prev_claims=0, 
+                gap_days=30,
+                has_witness=True if "witness" in str(analysis_result).lower() else False,
+                is_urgent=True if "urgent" in str(analysis_result).lower() or "emergency" in str(analysis_result).lower() else False
+            )
+            
+            # Perform ML Payout Prediction
+            ml_payout_result = ic_ml_service.predict_optimal_payout(
+                claimed_amount=amount_val,
+                risk_score=ml_fraud_result['risk_score']
+            )
+
+            # Integrate ML findings into AI result
+            analysis_result["ml_insights"] = {
+                "fraud_risk": ml_fraud_result,
+                "payout_prediction": ml_payout_result,
+                "confidence_score": round((float(analysis_result.get('confidence', 50)) + (1.0 - ml_fraud_result['risk_score']) * 100) / 2, 1),
+                "xai_report": ml_fraud_result.get("contributions", [])
+            }
+            
+            logger.info(f"Analysis enriched with ML & XAI: Fraud={ml_fraud_result['level']} ({ml_fraud_result['probability']}%)")
+            return analysis_result
+        except Exception as e:
+            logger.error(f"Failed to enrich analysis with ML: {str(e)}")
+            return analysis_result
 
     def _generate_with_timeout(self, contents: Any, generation_config: Any):
         """Call Gemini generate_content with a hard timeout."""
@@ -341,129 +376,149 @@ class EnhancedAIService:
         analysis_result["tokens_used"] = response.usage.total_tokens
         analysis_result["ai_service"] = "openai"
         
-        logger.info(f"OpenAI analysis completed: {analysis_result.get('decision', 'N/A')} with {analysis_result.get('confidence', 'N/A')}% confidence")
-        
-        return analysis_result
+        return self._enrich_with_ml(analysis_result)
     
     def _get_system_prompt(self) -> str:
         """Get the system prompt for the AI model"""
-        return """You are an expert insurance claims analyst with 20+ years of experience. Your task is to analyze insurance documents with 99.9% accuracy and provide detailed, professional assessments.
+        return """You are a Senior Insurance Claims Adjuster with 25+ years of experience, specializing in Indian insurance market and IRDAI (Insurance Regulatory and Development Authority of India) compliance. Your task is to perform a comprehensive document analysis and provide a detailed report for the Claim Examiner Dashboard.
 
-CORE RESPONSIBILITIES:
-1. Accurately determine claim approval status (APPROVED/DENIED/UNDER_REVIEW/PARTIAL_APPROVAL)
-2. Extract and validate monetary amounts with precision
-3. Provide comprehensive justification based on industry standards
-4. Identify potential fraud indicators
-5. Assess policy compliance and coverage details
-6. Calculate confidence scores based on document quality and evidence
+REGULATORY FRAMEWORK - IRDAI COMPLIANCE:
+You must ensure all claim assessments comply with IRDAI regulations and Insurance Act 1938 provisions:
 
-ANALYSIS FRAMEWORK:
-- Review document type, completeness, and authenticity
-- Extract key financial figures, dates, and parties involved
-- Check for policy compliance and coverage verification
-- Identify supporting documentation and evidence quality
-- Flag any inconsistencies or red flags
-- Apply industry best practices for claim evaluation
+CLAIM SETTLEMENT TIMELINES:
+- Health Insurance: 15 days from receipt of last document
+- Motor Insurance: 30 days from receipt of last document  
+- Property Insurance: 30 days from receipt of last document
 
-OUTPUT FORMAT:
-Always respond in valid JSON format with these exact fields:
+DEPRECIATION RATES (Motor Insurance):
+- Vehicle 0-6 months: Nil depreciation
+- Vehicle 6-12 months: 5% depreciation
+- Vehicle 1-2 years: 10% depreciation
+- Battery/Rubber/Plastic/Nylon parts: 50% depreciation
+
+STANDARD EXCLUSIONS TO CHECK:
+- Health: Pre-existing diseases, cosmetic treatments
+- Motor: Wear and tear, driving under influence
+- Property: Normal wear and tear, intentional damage
+
+FRAUD INDICATORS TO CHECK:
+- Multiple claims in short period
+- Claim filed immediately after policy purchase
+- Inconsistent statements or altered documents
+- Excessive/inflated amounts
+- Delayed intimation without valid reason
+
+ANALYSIS METHODOLOGY:
+1. Document Authentication: Verify document integrity, signatures, dates, and official markings
+2. Financial Validation: Cross-reference all amounts, calculations, and supporting invoices
+3. Policy Review: Check coverage limits, deductibles, exclusions, and endorsements
+4. Incident Analysis: Evaluate cause, timeline, and consistency with reported facts
+5. Fraud Detection: Identify red flags, inconsistencies, and suspicious patterns
+6. Regulatory Compliance: Ensure adherence to insurance regulations and industry standards
+
+DASHBOARD REPORT FORMAT REQUIREMENT:
+You must respond with ONLY a valid, minified JSON object block. Do not include conversation text. 
+
 {
   "decision": "APPROVED|DENIED|UNDER_REVIEW|PARTIAL_APPROVAL",
-  "amount": "₹X,XXX or $X,XXX format",
-  "confidence": 85.5,
-  "justification": "Detailed professional explanation",
-  "risk_assessment": "LOW|MEDIUM|HIGH",
-  "coverage_details": [
-    {
-      "item": "description",
-      "covered": true/false,
-      "amount": "₹X,XXX",
-      "reasoning": "explanation"
-    }
-  ],
-  "extracted_info": {
-    "policy_number": "string or null",
-    "claim_date": "string or null",
-    "incident_date": "string or null",
-    "total_amounts_found": 3,
-    "document_type": "insurance_claim|medical_report|bill|estimate",
-    "completeness_score": 95.0,
-    "authenticity_indicators": ["list of indicators"]
+  "confidence": 92.5,
+  "executive_summary": "2-3 sentence high-level overview of the claim and decision",
+  "document_type": "insurance_claim|medical_report|estimate|bill|police_report",
+  
+  "extracted_data": {
+    "claimant_name": "Name or null",
+    "policy_holder": "Name or null",
+    "policy_number": "Number or null",
+    "claim_number": "Number or null",
+    "incident_date": "YYYY-MM-DD or null",
+    "claim_date": "YYYY-MM-DD or null",
+    "vehicle_info": "Make Model Year or null",
+    "property_address": "Address or null",
+    "medical_provider": "Provider name or null"
   },
+  
+  "financial_breakdown": {
+    "total_claimed": "₹X,XXX",
+    "total_approved": "₹X,XXX",
+    "deductible": "₹X,XXX",
+    "depreciation": "₹X,XXX",
+    "non_covered_items": "₹X,XXX",
+    "itemized_breakdown": [
+      {
+        "category": "Specific item or service",
+        "claimed_amount": "₹X,XXX",
+        "approved_amount": "₹X,XXX",
+        "coverage_percentage": 80,
+        "reasoning": "Detailed explanation for this line item"
+      }
+    ]
+  },
+  
+  "risk_assessment": {
+    "overall_risk": "LOW|MEDIUM|HIGH|CRITICAL",
+    "fraud_score": 15.5,
+    "fraud_indicators": [
+      "Specific red flags identified with severity ratings"
+    ],
+    "investigation_recommended": false
+  },
+  
+  "coverage_analysis": {
+    "policy_type": "Auto|Property|Health|Liability",
+    "applicable_coverages": [
+      {
+        "coverage_name": "Specific coverage section",
+        "applies": true,
+        "limit": "₹X,XXX",
+        "explanation": "Why this coverage applies or doesn't apply"
+      }
+    ],
+    "exclusions_applied": [
+      {
+        "exclusion": "Specific policy exclusion",
+        "applies": true,
+        "impact": "How this affects the claim"
+      }
+    ]
+  },
+  
+  "incident_analysis": {
+    "incident_type": "Collision|Fire|Theft|Medical|Water Damage",
+    "location": "City, State or null",
+    "cause_of_loss": "Detailed description",
+    "timeline_consistency": "CONSISTENT|INCONSISTENT|UNCLEAR",
+    "police_report": "Filed|Not Filed|Not Required"
+  },
+  
+  "documentation_review": {
+    "completeness_score": 95.0,
+    "quality_score": 88.0,
+    "documents_received": [
+      "List of documents provided"
+    ],
+    "documents_missing": [
+      "List of required documents not provided"
+    ],
+    "authenticity_assessment": {
+      "appears_authentic": true,
+      "concerns": []
+    }
+  },
+  
   "recommendations": [
-    "Specific recommendations for claim processing"
+    "Specific actionable recommendations for claim processing",
+    "Additional documentation to request"
   ],
-  "red_flags": [
-    "Any concerning elements found"
-  ]
-}
-
-DECISION CRITERIA:
-- APPROVED: Clear documentation, policy compliance, reasonable amount, low risk
-- PARTIAL_APPROVAL: Some coverage with limitations or partial amounts
-- UNDER_REVIEW: Missing documentation, unclear details, requires investigation
-- DENIED: Policy violations, fraud indicators, non-covered events, or insufficient evidence
-
-CONFIDENCE SCORING:
-- 95-99%: Excellent documentation, clear-cut case
-- 85-94%: Good documentation, minor gaps
-- 70-84%: Adequate documentation, some concerns
-- 60-69%: Poor documentation, significant gaps
-- Below 60%: Insufficient information for reliable assessment"""
+  
+  "justification": "Multi-paragraph detailed professional explanation with specific references to policy provisions, evidence reviewed, and industry standards applied. Include reasoning for the decision.",
+  "adjuster_notes": "Detailed notes for the claims adjuster including any special circumstances."
+}"""
 
     def _create_vision_analysis_prompt(self, user_query: str = None) -> str:
         """Create a comprehensive prompt for insurance-focused vision document analysis"""
         
-        base_prompt = """
-        You are an expert insurance claim adjuster with advanced computer vision capabilities. Analyze this image/document using your vision capabilities to extract all insurance-related information.
-        
-        Please provide a comprehensive insurance claim analysis in the following JSON format:
-        {
-            "decision": "APPROVE" or "REJECT" or "NEEDS_REVIEW",
-            "confidence": 85,
-            "document_type": "insurance_claim" or "damage_photo" or "medical_report" or "policy_document" or "accident_report" or "repair_estimate" or "other",
-            "extracted_data": {
-                "text_content": "Full text extracted from the image/document using OCR",
-                "key_information": {
-                    "policy_number": "extract policy number if visible",
-                    "claim_number": "extract claim number if visible",
-                    "date": "incident or document date",
-                    "amount": "claim amount or repair cost",
-                    "claimant_name": "name of person filing claim",
-                    "vehicle_info": "make, model, year if vehicle claim",
-                    "damage_description": "description of damage from image",
-                    "location": "accident or incident location",
-                    "reference_number": "any other reference numbers"
-                }
-            },
-            "analysis": {
-                "summary": "Comprehensive summary of what you see in the image and extracted information",
-                "key_findings": [
-                    "Describe visible damage if any",
-                    "Note any text, forms, or documents visible",
-                    "Identify insurance-related elements",
-                    "Assess image quality and clarity"
-                ],
-                "potential_issues": [
-                    "Note any suspicious elements",
-                    "Inconsistencies in damage vs. description",
-                    "Missing required information",
-                    "Image quality concerns"
-                ],
-                "recommendations": [
-                    "Actions for claim processing",
-                    "Additional documentation needed",
-                    "Investigation requirements"
-                ]
-            },
-            "ai_reasoning": "Detailed explanation of your visual analysis, what you observed in the image, and the basis for your decision",
-            "compliance_check": {
-                "regulatory_compliance": true,
-                "documentation_complete": false,
-                "signature_present": false,
-                "date_valid": true
-            }
-        }
+        base_prompt = self._get_system_prompt()
+        base_prompt += """
         
         VISION ANALYSIS FOCUS:
         1. **OCR Text Extraction**: Extract ALL visible text from forms, documents, signs, labels
@@ -498,23 +553,8 @@ CONFIDENCE SCORING:
     def _create_analysis_prompt(self, document_text: str, user_query: str = None, model_type: str = "openai") -> str:
         """Create a sophisticated prompt for insurance document analysis"""
         
-        base_prompt = f"""INSURANCE DOCUMENT ANALYSIS REQUEST
-
-You are an expert insurance claims analyst with 20+ years of experience. Analyze this insurance document with 99.9% accuracy and provide a comprehensive assessment.
-
-DOCUMENT CONTENT:
+        base_prompt = f"""DOCUMENT CONTENT:
 {document_text}
-
-ANALYSIS REQUIREMENTS:
-Please analyze this insurance document with the highest level of accuracy and provide a comprehensive assessment.
-
-SPECIFIC FOCUS AREAS:
-1. Claim Validity: Determine if this is a legitimate insurance claim
-2. Policy Compliance: Check if the claim meets policy requirements  
-3. Financial Assessment: Extract and validate all monetary amounts
-4. Risk Evaluation: Assess potential fraud or compliance risks
-5. Documentation Quality: Evaluate completeness and authenticity
-6. Coverage Determination: Identify what should be covered under typical policies
 
 """
         
@@ -535,54 +575,13 @@ CRITICAL ANALYSIS POINTS:
 - Assess the incident description for plausibility
 - Flag any inconsistencies or concerning elements
 - Provide specific recommendations for claim processing
-
-OUTPUT FORMAT:
-Respond in valid JSON format with these exact fields:
-{
-  "decision": "APPROVED|DENIED|UNDER_REVIEW|PARTIAL_APPROVAL",
-  "amount": "₹X,XXX or $X,XXX format",
-  "confidence": 85.5,
-  "justification": "Detailed professional explanation",
-  "risk_assessment": "LOW|MEDIUM|HIGH",
-  "coverage_details": [
-    {
-      "item": "description",
-      "covered": true/false,
-      "amount": "₹X,XXX",
-      "reasoning": "explanation"
-    }
-  ],
-  "extracted_info": {
-    "policy_number": "string or null",
-    "claim_date": "string or null", 
-    "incident_date": "string or null",
-    "total_amounts_found": 3,
-    "document_type": "insurance_claim|medical_report|bill|estimate",
-    "completeness_score": 95.0,
-    "authenticity_indicators": ["list of indicators"]
-  },
-  "recommendations": [
-    "Specific recommendations for claim processing"
-  ],
-  "red_flags": [
-    "Any concerning elements found"
-  ]
-}
-
-DECISION CRITERIA:
-- APPROVED: Clear documentation, policy compliance, reasonable amount, low risk
-- PARTIAL_APPROVAL: Some coverage with limitations or partial amounts
-- UNDER_REVIEW: Missing documentation, unclear details, requires investigation
-- DENIED: Policy violations, fraud indicators, non-covered events, or insufficient evidence
-
-CONFIDENCE SCORING:
-- 95-99%: Excellent documentation, clear-cut case
-- 85-94%: Good documentation, minor gaps
-- 70-84%: Adequate documentation, some concerns
-- 60-69%: Poor documentation, significant gaps
-- Below 60%: Insufficient information for reliable assessment
-
-Provide your analysis in the specified JSON format with maximum accuracy and detail."""
+"""
+        
+        # If the model type is openai, it uses system prompt, but if it relies on this string only, we need to append the persona
+        if model_type != "openai":
+            base_prompt = self._get_system_prompt() + "\n\n" + base_prompt
+            
+        return base_prompt
 
         return base_prompt
 

@@ -1,5 +1,10 @@
 // API Configuration for IntelliClaim Frontend
-const API_BASE_URL = 'http://localhost:8000';
+// Toggle this to true to switch to the Java Microservices Gateway
+const USE_JAVA_GATEWAY = false;
+
+const API_BASE_URL = USE_JAVA_GATEWAY
+  ? 'http://localhost:8080'
+  : 'http://localhost:8000';
 
 // API Endpoints Configuration
 export const API_CONFIG = {
@@ -9,11 +14,12 @@ export const API_CONFIG = {
     AUTH: {
       REGISTER: '/api/v1/auth/register',
       LOGIN: '/api/v1/auth/login',
+      GOOGLE_LOGIN: '/api/v1/auth/google',
       LOGOUT: '/api/v1/auth/logout',
       ME: '/api/v1/auth/me',
       REFRESH: '/api/v1/auth/refresh'
     },
-    
+
     // Dashboard
     DASHBOARD: {
       METRICS: '/api/v1/dashboard/metrics',
@@ -21,7 +27,7 @@ export const API_CONFIG = {
       RECENT: '/api/v1/dashboard/recent',
       CHARTS: '/api/v1/dashboard/charts'
     },
-    
+
     // Document Processing
     DOCUMENTS: {
       UPLOAD: '/api/v1/documents/upload',
@@ -32,7 +38,7 @@ export const API_CONFIG = {
       DELETE: (id: string) => `/api/v1/documents/${id}`,
       QUERY: '/api/v1/documents/query'
     },
-    
+
     // Claims Management
     CLAIMS: {
       LIST: '/api/v1/claims/',
@@ -44,7 +50,7 @@ export const API_CONFIG = {
       REJECT: (id: string) => `/api/v1/claims/${id}/reject`,
       HISTORY: (id: string) => `/api/v1/claims/${id}/history`
     },
-    
+
     // Vision Inspector
     VISION: {
       ANALYZE: '/api/v1/vision/analyze',
@@ -53,7 +59,7 @@ export const API_CONFIG = {
       OCR: '/api/v1/vision/ocr',
       CLASSIFY: '/api/v1/vision/classify'
     },
-    
+
     // Workflow Builder
     WORKFLOWS: {
       LIST: '/api/v1/workflows/',
@@ -64,7 +70,14 @@ export const API_CONFIG = {
       EXECUTE: (id: string) => `/api/v1/workflows/${id}/execute`,
       TEMPLATES: '/api/v1/workflows/templates'
     },
-    
+
+
+    // Forensics
+    FORENSICS: {
+      WEATHER: '/api/v1/forensics/weather',
+      VOICE: '/api/v1/forensics/voice'
+    },
+
     // Settings
     SETTINGS: {
       PROFILE: '/api/v1/settings/profile',
@@ -72,7 +85,7 @@ export const API_CONFIG = {
       AI: '/api/v1/settings/ai',
       API: '/api/v1/settings/api'
     },
-    
+
     // System
     SYSTEM: {
       HEALTH: '/health',
@@ -123,10 +136,16 @@ export class ApiClient {
     if (!response.ok) {
       if (response.status === 401) {
         this.clearToken();
-        // Optionally redirect to login
-        throw new Error('Authentication required');
+        let detail = 'Authentication required';
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || errorData.message || detail;
+        } catch (e) {
+          // Fallback to generic message
+        }
+        throw new Error(detail);
       }
-      
+
       let errorMessage = 'Request failed';
       try {
         const errorData = await response.json();
@@ -134,7 +153,7 @@ export class ApiClient {
       } catch {
         errorMessage = response.statusText || errorMessage;
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -186,7 +205,7 @@ export class ApiClient {
   public async uploadFile(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (additionalData) {
       Object.entries(additionalData).forEach(([key, value]) => {
         formData.append(key, value.toString());
@@ -218,7 +237,7 @@ export async function checkApiHealth(): Promise<{ healthy: boolean; message?: st
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
-    
+
     if (response.ok) {
       const data = await response.json();
       return { healthy: true, message: data.status };
@@ -226,9 +245,9 @@ export async function checkApiHealth(): Promise<{ healthy: boolean; message?: st
       return { healthy: false, message: `Server error: ${response.status}` };
     }
   } catch (error) {
-    return { 
-      healthy: false, 
-      message: error instanceof Error ? error.message : 'Connection failed' 
+    return {
+      healthy: false,
+      message: error instanceof Error ? error.message : 'Connection failed'
     };
   }
 }

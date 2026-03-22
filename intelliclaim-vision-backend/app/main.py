@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, WebSocket, WebSocketDisconnect
+import os
+print(f"LOADING APP FROM: {__file__}")
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,6 +14,8 @@ import os
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Load environment variables
 load_dotenv()
@@ -61,6 +65,9 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class GoogleLoginRequest(BaseModel):
+    token: str
+
 class UserResponse(BaseModel):
     id: str
     name: str
@@ -90,6 +97,16 @@ class DocumentAnalysis(BaseModel):
     query: str
     document_type: Optional[str] = "insurance_claim"
     context: Optional[str] = None
+
+class FeedbackCreate(BaseModel):
+    document_id: str
+    original_decision: str
+    new_decision: str
+    feedback_notes: str
+
+class ChatMessage(BaseModel):
+    message: str
+    history: List[Dict[str, str]] = []
 
 class DashboardMetrics(BaseModel):
     total_claims: int
@@ -230,6 +247,62 @@ async def login(login_data: UserLogin):
         }
     }
 
+@app.post("/api/v1/auth/google")
+async def google_login(login_data: GoogleLoginRequest):
+    try:
+        # Verify Google Token
+        CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "193638521202-2fugpole2s8g3dqr66oks13rmimo1sot.apps.googleusercontent.com")
+        # In a real app, you would verify the token with Google
+        # For this demo, if the CLIENT_ID is the placeholder, we might simulate it 
+        # but the library will fail if the token is not a real JWT from Google.
+        idinfo = id_token.verify_oauth2_token(login_data.token, google_requests.Request(), CLIENT_ID)
+
+        # ID token is valid. Get user's Google Account ID from the decoded token.
+        email = idinfo['email']
+        name = idinfo.get('name', email.split('@')[0])
+        
+        # Check if user exists, otherwise create
+        user = None
+        for u in users_db.values():
+            if u["email"] == email:
+                user = u
+                break
+        
+        if not user:
+            # Create new user for first-time Google login
+            user_id = str(uuid.uuid4())
+            user = {
+                "id": user_id,
+                "name": name,
+                "email": email,
+                "password_hash": "EXTERNAL_AUTH", 
+                "company": "Google User",
+                "role": "user",
+                "created_at": datetime.utcnow()
+            }
+            users_db[user_id] = user
+        
+        # Create JWT token for our system
+        token = create_jwt_token(user["id"])
+        
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+                "company": user.get("company"),
+                "role": user["role"]
+            }
+        }
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
+    except Exception as e:
+        logging.error(f"Google login error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
+
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return UserResponse(
@@ -257,6 +330,39 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
         accuracy_rate=94.7,
         auto_approval_rate=78.3
     )
+
+# WebSocket Connection Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: Dict[str, Any]):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logging.error(f"Error sending to websocket: {e}")
+                # Connection might be dead, safe to ignore as it will be removed on disconnect
+                pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/dashboard")
+async def websocket_dashboard(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and listen for any client messages (ping)
+            _ = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 @app.get("/api/v1/dashboard/stats")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
@@ -399,6 +505,226 @@ async def analyze_document(
         logging.error(f"Error analyzing document: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to analyze document: {str(e)}")
 
+import asyncio
+
+@app.websocket("/api/v1/ws/analyze/{document_id}")
+async def websocket_analyze(websocket: WebSocket, document_id: str):
+    """Real-Time Analysis streaming via WebSockets"""
+    await websocket.accept()
+    
+    document = documents_db.get(document_id)
+    if not document:
+        await websocket.send_json({"error": "Document not found"})
+        await websocket.close()
+        return
+        
+    file_path = document.get("file_path")
+    if not file_path or not os.path.exists(file_path):
+        await websocket.send_json({"error": "Document file not found on disk"})
+        await websocket.close()
+        return
+
+    try:
+        # Step 1: Extract Text
+        await websocket.send_json({"progress": 15, "text": "Extracting text and meta-data...", "stage": "extract"})
+        await asyncio.sleep(1) # mock visual delay for UX
+        extracted_text = document_processor.extract_text_from_file(file_path)
+        is_image_file = document['content_type'].startswith('image/')
+        
+        if not extracted_text.strip() and not is_image_file:
+            await websocket.send_json({"error": "No readable text found. Manual review required."})
+            await websocket.close()
+            return
+            
+        await websocket.send_json({"progress": 40, "text": "Running Gemini Vision Model analysis...", "stage": "vision"})
+        
+        # Step 2: Run intense AI Model in background thread to keep WebSocket unblocked
+        def run_ai():
+            return document_processor.analyze_document_content(
+                text=extracted_text or "",
+                document_type="insurance_claim",
+                user_query="Analyze this claim.",
+                file_path=file_path
+            )
+            
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(None, run_ai)
+        
+        # Intermittent progress pushing
+        await asyncio.sleep(1)
+        if not task.done():
+            await websocket.send_json({"progress": 65, "text": "Calculating Fraud Risk via active modeling...", "stage": "fraud"})
+            
+        await asyncio.sleep(1.5)
+        if not task.done():
+            await websocket.send_json({"progress": 85, "text": "Applying Policy Limitations and Coverage Checks...", "stage": "policy"})
+            
+        analysis_result = await task
+        
+        # Update db
+        document["analysis_results"] = analysis_result
+        document["analyzed_at"] = datetime.utcnow()
+        analysis_result["document_info"] = {
+            "filename": document["filename"],
+            "content_type": document["content_type"],
+            "size": document["size"],
+            "text_extracted_length": len(extracted_text)
+        }
+        
+        await websocket.send_json({"progress": 100, "text": "Analysis complete!", "stage": "done", "result": analysis_result})
+        
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        await websocket.send_json({"error": str(e)})
+        
+    await websocket.close()
+
+@app.post("/api/v1/documents/feedback")
+async def submit_feedback(
+    feedback: FeedbackCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Continuous Feedback Loop: Submit adjuster corrections to improve AI models"""
+    # In a real app, this would append to a training dataset DB
+    doc = documents_db.get(feedback.document_id)
+    if not doc:
+        logging.warning(f"Feedback submitted for unknown doc_id: {feedback.document_id}")
+        
+    logging.info(f"ACTIVE LEARNING: User {current_user['email']} reversed AI decision from {feedback.original_decision} to {feedback.new_decision}. Notes: {feedback.feedback_notes}")
+    
+    return {
+        "status": "success",
+        "message": "Feedback successfully logged for active learning fine-tuning.",
+        "logged_data": feedback.dict()
+    }
+
+@app.post("/api/v1/chatbot")
+async def chatbot_conversation(
+    chat: ChatMessage,
+    current_user: dict = Depends(get_current_user)
+):
+    """Conversational Claim Assistant Endpoint"""
+    # Mocking Gemini response using simple logic for demonstration
+    msg = chat.message.lower()
+    
+    if "hit" in msg or "rear" in msg or "accident" in msg:
+        reply = "I'm sorry to hear about your accident. To fast-track your claim, could you please tell me the exact date and location of the incident? Also, do you have any photos handy?"
+    elif "date" in msg or "yesterday" in msg or "today" in msg or "location" in msg:
+        reply = "Got it. I have noted the date and location. Have you filed a police report (FIR), and are there any injuries I should be aware of?"
+    elif "police" in msg or "fir" in msg or "yes" in msg:
+        reply = "Thank you. I have successfully gathered the preliminary details for your comprehensive claim. You can now upload the photos or FIR document to the portal for immediate AI processing!"
+    else:
+        reply = "I understand. Could you provide a bit more detail about the incident, such as what specifically happened and if there's any property or vehicle damage?"
+        
+    return {
+        "reply": reply,
+        "action_required": "upload_docs" if "upload" in reply else "none"
+    }
+
+@app.get("/api/v1/fraud/network/{document_id}")
+async def get_fraud_network_analysis(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Contextual Fraud Detection (Graph Network Analysis Mock)"""
+    # In a real enterprise app, this applies Graph algorithms via Neo4j to find rings
+    import random
+    
+    nodes = [
+        {"id": "doc_1", "group": 1, "label": "Current Claim", "size": 25},
+        {"id": "user_1", "group": 2, "label": current_user.get("name", "User"), "size": 15},
+        {"id": "clinic_1", "group": 3, "label": "Fortis Hospital", "size": 15},
+        {"id": "shop_1", "group": 4, "label": "Metro City Garage", "size": 15},
+    ]
+    edges = [
+        {"from": "user_1", "to": "doc_1", "label": "filed"},
+        {"from": "doc_1", "to": "clinic_1", "label": "treatment_at"},
+        {"from": "doc_1", "to": "shop_1", "label": "repaired_at"},
+    ]
+    
+    # 50% chance to simulate detecting an organized fraud ring for demo UX
+    if random.random() > 0.5:
+        suspicious_score = 8.5
+        nodes.extend([
+            {"id": "user_2", "group": 2, "label": "Prior Flagged User", "size": 10},
+            {"id": "user_3", "group": 2, "label": "Associated Ring Member", "size": 10},
+            {"id": "doc_2", "group": 1, "label": "Flagged Claim 884", "size": 10},
+            {"id": "doc_3", "group": 1, "label": "Flagged Claim 992", "size": 10},
+        ])
+        edges.extend([
+            {"from": "user_2", "to": "doc_2", "label": "filed"},
+            {"from": "user_3", "to": "doc_3", "label": "filed"},
+            {"from": "doc_2", "to": "clinic_1", "label": "treatment_at", "color": "red"},
+            {"from": "doc_3", "to": "shop_1", "label": "repaired_at", "color": "red"},
+        ])
+    else:
+        suspicious_score = 1.2
+        
+    return {
+        "status": "success",
+        "suspicious_score": suspicious_score,
+        "network": {
+            "nodes": nodes,
+            "edges": edges
+        },
+        "insights": [
+            "Analyzed 3rd degree connections via Graph Network algorithms.",
+            "WARNING: Detected high-risk overlapping service providers from previously flagged fraudulent claims." if suspicious_score > 5 else "Clean: No historical fraudulent rings detected in 3rd degree connections."
+        ]
+    }
+
+@app.post("/api/v1/documents/cross-check")
+async def cross_check_documents(
+    document_ids: List[str],
+    current_user: dict = Depends(get_current_user)
+):
+    """Perform cross-document consistency analysis"""
+    from .services.cross_reference import cross_ref_engine
+    
+    analyses = []
+    for doc_id in document_ids:
+        doc = documents_db.get(doc_id)
+        if doc and doc.get("analysis_results"):
+            # Ensure doc_id is included for reference
+            result = doc["analysis_results"]
+            result["document_id"] = doc_id
+            analyses.append(result)
+            
+    if not analyses:
+        raise HTTPException(status_code=400, detail="No analyzed documents found for cross-checking")
+        
+    return cross_ref_engine.analyze_consistency(analyses)
+
+# Forensics endpoints
+class WeatherVerificationRequest(BaseModel):
+    location: str
+    incident_date: str
+    claimed_condition: str
+
+@app.post("/api/v1/forensics/weather")
+async def verify_weather(
+    request: WeatherVerificationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify claim against historical weather data"""
+    from .services.weather_forensics import weather_service
+    return await weather_service.verify_weather_conditions(
+        request.location,
+        request.incident_date,
+        request.claimed_condition
+    )
+
+@app.post("/api/v1/forensics/voice")
+async def analyze_voice(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Analyze voice recording for fraud markers"""
+    from .services.voice_forensics import voice_engine
+    
+    content = await file.read()
+    return voice_engine.analyze_audio(content, file.filename)
+
 # Claims management endpoints
 @app.get("/api/v1/claims/", response_model=List[ClaimResponse])
 async def get_claims(current_user: dict = Depends(get_current_user)):
@@ -422,6 +748,18 @@ async def create_claim(claim_data: ClaimCreate, current_user: dict = Depends(get
     }
     
     claims_db[claim_id] = new_claim
+    
+    # Broadcast new claim event
+    await manager.broadcast({
+        "event": "NEW_CLAIM",
+        "data": {
+            "id": claim_id,
+            "title": new_claim["title"],
+            "amount": new_claim["amount"],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+    
     return ClaimResponse(**new_claim)
 
 # Vision analysis endpoints
@@ -516,6 +854,24 @@ async def update_profile_settings(
         })
     
     return {"message": "Profile updated successfully"}
+
+@app.get("/api/v1/settings/notifications")
+async def get_notification_settings(current_user: dict = Depends(get_current_user)):
+    return {
+        "email_alerts": True,
+        "browser_push": False,
+        "daily_digest": True,
+        "marketing": False
+    }
+
+@app.get("/api/v1/settings/ai")
+async def get_ai_settings(current_user: dict = Depends(get_current_user)):
+    return {
+        "vision_confidence_threshold": 85.0,
+        "auto_approval_limit": 5000.0,
+        "enable_voice_analysis": True,
+        "enable_weather_forensics": True
+    }
 
 # Include demo routes for presentation
 app.include_router(demo_router, prefix="/api/v1/demo", tags=["demo"])

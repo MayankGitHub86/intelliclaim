@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { 
-  Brain, 
-  Play, 
-  ArrowRight, 
+import {
+  Brain,
+  Play,
+  ArrowRight,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  CheckCircle
 } from 'lucide-react';
 
 const SLIDE_DURATION_MS = 5000;
@@ -100,21 +101,21 @@ export function HeroSection({ onEnterApp, openAuthModal, isAuthenticated }: Hero
             </h1>
 
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 leading-relaxed">
-              Process claims in <span className="font-semibold text-[#00FF88]">seconds, not days</span>. 
+              Process claims in <span className="font-semibold text-[#00FF88]">seconds, not days</span>.
               Our advanced AI platform transforms insurance processing with unprecedented speed and accuracy.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8 sm:mb-12">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] hover:from-[#0052CC] hover:to-[#7C3AED] text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 h-auto"
                 onClick={onEnterApp}
               >
                 {isAuthenticated ? 'Enter Dashboard' : 'Start Free Trial'}
                 <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 h-auto"
                 onClick={() => openAuthModal(true)}
@@ -151,40 +152,83 @@ export function HeroSection({ onEnterApp, openAuthModal, isAuthenticated }: Hero
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
+            {/* 3D Floating Elements */}
+            <motion.div
+              animate={{
+                y: [0, -20, 0],
+                rotate: [0, 5, 0]
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-12 -left-12 z-20 bg-white/10 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-2xl hidden sm:block"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Verification</p>
+                  <p className="text-sm font-bold">Claim Approved</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{
+                y: [0, 15, 0],
+                rotate: [0, -3, 0]
+              }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="absolute -bottom-8 -right-8 z-20 bg-white/10 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-2xl hidden sm:block"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Brain className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">AI Confidence</p>
+                  <p className="text-sm font-bold">99.2% Accurate</p>
+                </div>
+              </div>
+            </motion.div>
+
             <div className="relative z-10">
-              <Card className="p-2 bg-background/95 backdrop-blur-sm border-2 border-border/50 shadow-2xl rounded-3xl">
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-muted/50 to-background border border-border/30">
+              <Card className="p-2 bg-white/5 backdrop-blur-2xl border-2 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-3xl overflow-hidden group">
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/5 relative">
                   {currentSlide && (
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={activeSlide}
-                        initial={{ opacity: 0, scale: 1.05 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.5 }}
+                        initial={{ opacity: 0, scale: 1.1, rotateY: 5 }}
+                        animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, rotateY: -5 }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
                         className="w-full h-full relative"
                       >
                         <img
                           src={currentSlide.src}
                           alt={currentSlide.alt}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzllYTNhOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkRhc2hib2FyZCBQcmV2aWV3PC90ZXh0Pjwvc3ZnPg==';
                           }}
                         />
-                        
+
                         {/* Overlay Content */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent flex flex-col justify-end p-4">
-                          <div className="bg-background/90 backdrop-blur-sm rounded-lg p-3 border border-border/50">
-                            <h3 className="font-semibold text-sm mb-1">AI Dashboard</h3>
-                            <p className="text-xs text-muted-foreground">Real-time claim processing analytics</p>
-                          </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-6">
+                          <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 shadow-2xl"
+                          >
+                            <h3 className="font-bold text-lg mb-1 text-white">Neural Processing</h3>
+                            <p className="text-xs text-white/70">Securely analyzing policy document #{claimsProcessed}</p>
+                          </motion.div>
                         </div>
                       </motion.div>
                     </AnimatePresence>
                   )}
-                  
+
                   {!currentSlide && (
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center">
@@ -205,11 +249,10 @@ export function HeroSection({ onEnterApp, openAuthModal, isAuthenticated }: Hero
                       <button
                         key={index}
                         onClick={() => setActiveSlide(index)}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          index === activeSlide % slidesLength
-                            ? 'bg-[#0066FF] w-6'
-                            : 'bg-border hover:bg-muted-foreground'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${index === activeSlide % slidesLength
+                          ? 'bg-[#0066FF] w-6'
+                          : 'bg-border hover:bg-muted-foreground'
+                          }`}
                         aria-label={`Go to slide ${index + 1}`}
                       />
                     ))}

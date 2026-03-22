@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'motion/react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, ArrowLeft, Sparkles, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, ArrowLeft, Sparkles, Shield, Zap, Github, Linkedin } from 'lucide-react';
 import { toast } from "sonner";
 import { apiClient, API_CONFIG } from '../config/api';
 
@@ -37,6 +38,30 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google Login failed: No credential received");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, {
+        token: credentialResponse.credential
+      });
+
+      // Store the token
+      apiClient.setToken(response.access_token);
+      toast.success("Welcome to IntelliClaim via Google!");
+      onAuthenticated();
+    } catch (error: any) {
+      console.error('Google Auth error:', error);
+      toast.error(error.message || 'Google Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -48,12 +73,12 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
           email: formData.email,
           password: formData.password
         });
-        
+
         // Store the token
         apiClient.setToken(response.access_token);
         toast.success("Welcome back to IntelliClaim!");
         onAuthenticated();
-        
+
       } else {
         // Validation for registration
         if (formData.password !== formData.confirmPassword) {
@@ -67,7 +92,7 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
           setLoading(false);
           return;
         }
-        
+
         // Real registration API call
         await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, {
           name: formData.name,
@@ -75,13 +100,13 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
           password: formData.password,
           company: formData.company || 'Default Company'
         });
-        
+
         // Auto-login after registration
         const loginResponse = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
           email: formData.email,
           password: formData.password
         });
-        
+
         apiClient.setToken(loginResponse.access_token);
         toast.success("Account created successfully!");
         onAuthenticated();
@@ -124,7 +149,7 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
 
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-        
+
         {/* Left Side - Branding & Features */}
         <motion.div
           className="text-center lg:text-left"
@@ -144,7 +169,7 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
               Back to Landing
             </motion.button>
           )}
-          
+
           <motion.div
             className="mb-8"
             initial={{ opacity: 0, y: 20 }}
@@ -190,27 +215,25 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
         >
           <Card className="relative bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-lg" />
-            
+
             <div className="relative p-8">
               {/* Tab Switcher */}
               <div className="flex mb-8 p-1 bg-white/10 backdrop-blur-sm rounded-lg">
                 <button
                   onClick={() => setIsLogin(true)}
-                  className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                    isLogin 
-                      ? 'bg-white text-[#0066FF] shadow-lg' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
+                  className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${isLogin
+                    ? 'bg-white text-[#0066FF] shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                    }`}
                 >
                   Sign In
                 </button>
                 <button
                   onClick={() => setIsLogin(false)}
-                  className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${
-                    !isLogin 
-                      ? 'bg-white text-[#0066FF] shadow-lg' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
+                  className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 ${!isLogin
+                    ? 'bg-white text-[#0066FF] shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                    }`}
                 >
                   Sign Up
                 </button>
@@ -347,6 +370,61 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
                       </>
                     )}
                   </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-[#0066FF] px-2 text-white/50">Or continue with</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-center">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => {
+                          toast.error("Google Login Failed");
+                        }}
+                        useOneTap
+                        theme="filled_blue"
+                        shape="pill"
+                        width="100%"
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 flex items-center justify-center gap-2"
+                      onClick={() => toast.info("GitHub Login coming soon!")}
+                    >
+                      <Github className="w-5 h-5" />
+                      Continue with GitHub
+                    </Button>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="bg-white/5 border-white/10 text-white hover:bg-white/10 flex items-center justify-center gap-2"
+                        onClick={() => toast.info("LinkedIn Login coming soon!")}
+                      >
+                        <Linkedin className="w-4 h-4" />
+                        LinkedIn
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="bg-white/5 border-white/10 text-white hover:bg-white/10 flex items-center justify-center gap-2"
+                        onClick={() => toast.info("Microsoft Login coming soon!")}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z" fill="currentColor" /></svg>
+                        Microsoft
+                      </Button>
+                    </div>
+                  </div>
                 </motion.form>
               </AnimatePresence>
 

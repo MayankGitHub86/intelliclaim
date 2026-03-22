@@ -3,21 +3,23 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ThemeProvider } from './components/theme-provider';
 import { Auth } from './components/auth';
 import { LandingPage } from './components/landing-page';
+import { Dashboard } from './components/dashboard';
 import { DocumentProcessor } from './components/document-processor';
 import { WorkflowBuilder } from './components/workflow-builder';
 import { VisionInspector } from './components/vision-inspector';
 import { Settings } from './components/settings';
 import { Navigation } from './components/navigation';
+import { ClaimChatbot } from './components/claim-chatbot';
 
 import { Toaster } from './components/ui/sonner';
 import { ErrorFallback, useErrorHandler } from './components/ErrorBoundary';
 import { apiClient, API_CONFIG } from './config/api';
 import { toast } from 'sonner';
 
-type Page = 'landing' | 'auth' | 'documents' | 'workflows' | 'vision' | 'settings';
+type Page = 'landing' | 'auth' | 'dashboard' | 'documents' | 'workflows' | 'vision' | 'settings';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('landing');
+  const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isTrialUser, setIsTrialUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function App() {
         const token = localStorage.getItem('auth_token');
         if (token) {
           apiClient.setToken(token);
-          
+
           // Verify token by fetching user profile
           const profile = await apiClient.get(API_CONFIG.ENDPOINTS.SETTINGS.PROFILE);
           setUserProfile(profile);
@@ -72,7 +74,7 @@ export default function App() {
       setCurrentPage('documents'); // Redirect to Smart Prediction System
     } else {
       setIsLoading(true);
-      
+
       try {
         // Try to create a trial user with backend
         const timestamp = Date.now();
@@ -81,16 +83,16 @@ export default function App() {
           password: 'TrialPass123!',
           name: `Trial User ${timestamp.toString().slice(-4)}`
         };
-        
+
         // Register trial user
         await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, trialUserData);
-        
+
         // Login with trial user
         const loginResponse = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
           email: trialUserData.email,
           password: trialUserData.password
         });
-        
+
         // Set authentication
         const token = loginResponse.access_token;
         localStorage.setItem('auth_token', token);
@@ -98,12 +100,12 @@ export default function App() {
         setUserProfile(loginResponse.user);
         setIsAuthenticated(true);
         setIsTrialUser(true);
-        
+
         toast.success('🎉 Welcome to your free trial! Explore the Smart Prediction System.');
-        
+
       } catch (error: any) {
         console.error('Backend unavailable, proceeding with offline trial:', error);
-        
+
         // Backend is down - create offline trial session
         const timestamp = Date.now();
         setUserProfile({
@@ -113,7 +115,7 @@ export default function App() {
         });
         setIsAuthenticated(true);
         setIsTrialUser(true);
-        
+
         toast.success('🎉 Welcome to your offline trial! Explore the Smart Prediction System.');
       } finally {
         setIsLoading(false);
@@ -159,25 +161,26 @@ export default function App() {
   }
 
   const pageComponents = {
-    landing: <LandingPage 
+    landing: <LandingPage
       isAuthenticated={isAuthenticated}
       onAuthenticated={handleAuthenticated}
       onEnterApp={handleStartTrial}
       onShowAuth={() => setCurrentPage('auth')}
     />,
-    auth: <Auth 
+    auth: <Auth
       onAuthenticated={handleAuthenticated}
       onBackToLanding={() => setCurrentPage('landing')}
     />,
+    dashboard: <Dashboard onNavigate={(page) => setCurrentPage(page as Page)} />,
     documents: <DocumentProcessor />,
     workflows: <WorkflowBuilder />,
     vision: <VisionInspector />,
-    settings: <Settings 
+    settings: <Settings
       isTrialUser={isTrialUser}
       onUpgrade={() => setCurrentPage('landing')}
       userProfile={userProfile}
     />
-  };  return (
+  }; return (
     <ThemeProvider defaultTheme="light" storageKey="intelliclaim-theme">
       <div className="min-h-screen bg-background">
         {currentPage === 'landing' ? (
@@ -186,16 +189,16 @@ export default function App() {
           pageComponents.auth
         ) : (
           <div className="flex min-h-screen">
-            <Navigation 
-              currentPage={currentPage} 
-              onPageChange={setCurrentPage}
+            <Navigation
+              currentPage={currentPage}
+              onPageChange={(page) => setCurrentPage(page as Page)}
               onBackToLanding={() => {
                 setCurrentPage('landing');
                 setIsTrialUser(false);
               }}
               onLogout={handleLogout}
               isTrialUser={isTrialUser}
-              onUpgrade={() => {}} // Auth is now handled within landing page
+              onUpgrade={() => { }} // Auth is now handled within landing page
             />
             <main className="flex-1">
               <AnimatePresence mode="wait">
@@ -211,6 +214,7 @@ export default function App() {
                 </motion.div>
               </AnimatePresence>
             </main>
+            <ClaimChatbot />
           </div>
         )}
         <Toaster />
