@@ -434,8 +434,7 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
               </div>
             </Card>
           </motion.div>
-        </div>
       </div>
-    </GoogleOAuthProvider>
+    </div>
   );
 }

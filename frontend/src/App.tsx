@@ -15,7 +15,8 @@ import { ChatAssistant } from './components/chat-assistant';
 import { ErrorFallback, useErrorHandler } from './components/ErrorBoundary';
 import { apiClient, API_CONFIG } from './config/api';
 import { toast } from 'sonner';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
@@ -185,47 +186,47 @@ export default function App() {
       userProfile={userProfile}
     />
   };
- return (
+  return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-    <ThemeProvider defaultTheme="light" storageKey="intelliclaim-theme">
-      <div className="min-h-screen bg-background">
-        {currentPage === 'landing' ? (
-          (pageComponents as any).landing
-        ) : currentPage === 'auth' ? (
-          (pageComponents as any).auth
-        ) : (
-          <div className="flex min-h-screen">
-            <Navigation
-              currentPage={currentPage}
-              onPageChange={(page) => setCurrentPage(page as Page)}
-              onBackToLanding={() => {
-                setCurrentPage('landing');
-                setIsTrialUser(false);
-              }}
-              onLogout={handleLogout}
-              isTrialUser={isTrialUser}
-              onUpgrade={() => { }} // Auth is now handled within landing page
-            />
-            <main className="flex-1">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentPage}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="min-h-full"
-                >
-                  {(pageComponents as any)[currentPage]}
-                </motion.div>
-              </AnimatePresence>
-            </main>
-          </div>
-        )}
-        <Toaster />
-        <ChatAssistant />
-      </div>
-    </ThemeProvider>
+      <ThemeProvider defaultTheme="light" storageKey="intelliclaim-theme">
+        <div className="min-h-screen bg-background">
+          {currentPage === 'landing' ? (
+            (pageComponents as any).landing
+          ) : currentPage === 'auth' ? (
+            (pageComponents as any).auth
+          ) : (
+            <div className="flex min-h-screen">
+              <Navigation
+                currentPage={currentPage}
+                onPageChange={(page) => setCurrentPage(page as Page)}
+                onBackToLanding={() => {
+                  setCurrentPage('landing');
+                  setIsTrialUser(false);
+                }}
+                onLogout={handleLogout}
+                isTrialUser={isTrialUser}
+                onUpgrade={() => { }}
+              />
+              <main className="flex-1">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentPage}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="min-h-full"
+                  >
+                    {(pageComponents as any)[currentPage]}
+                  </motion.div>
+                </AnimatePresence>
+              </main>
+            </div>
+          )}
+          <Toaster />
+          <ChatAssistant />
+        </div>
+      </ThemeProvider>
     </GoogleOAuthProvider>
   );
 }
