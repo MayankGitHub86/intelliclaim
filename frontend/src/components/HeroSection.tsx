@@ -26,15 +26,15 @@ const formatAltText = (value: string) => {
 // Dashboard preview data with asset images
 const DASHBOARD_SLIDES = [
   {
-    src: '/src/assets/dashboard-analytics.svg',
+    src: '/dashboard-analytics.svg',
     alt: 'Dashboard Analytics - Claims processing and performance metrics'
   },
   {
-    src: '/src/assets/ai-insights.svg',
+    src: '/ai-insights.svg',
     alt: 'AI Smart Prediction System - Machine learning insights and accuracy'
   },
   {
-    src: '/src/assets/claims-overview.svg',
+    src: '/claims-overview.svg',
     alt: 'Claims Management Hub - Real-time processing and status overview'
   }
 ];
