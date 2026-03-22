@@ -19,12 +19,25 @@ interface UploadedPhoto {
   id: string; file: File; preview: string; progress: number; status: 'uploading' | 'done' | 'error';
 }
 interface DamageItem {
-  item: string; severity: string; estimatedCostINR: number; repairType: string; notes: string;
+  item: string; severity: string; estimatedCostINR: number; laborCostINR?: number; repairType: string; partType?: string; notes: string;
 }
 interface AnalysisResult {
-  damageSummary: string; damageItems: DamageItem[]; totalEstimatedClaimINR: number;
-  claimFilingChecklist: string[]; recommendedActions: string[]; confidenceLevel: number;
-  urgencyLevel: string; additionalNotes: string;
+  damageSummary: string;
+  vehicleInfo?: { detectedMake?: string; detectedModel?: string; detectedColor?: string; registrationVisible?: string; vehicleAge?: string };
+  impactAnalysis?: { primaryImpactZone?: string; impactDirection?: string; estimatedSpeed?: string; damagePattern?: string };
+  damageItems: DamageItem[];
+  totalEstimatedClaimINR: number;
+  laborTotalINR?: number;
+  partsTotalINR?: number;
+  depreciationNote?: string;
+  repairTimelineDays?: number;
+  totalLossAssessment?: { isTotalLoss: boolean; reasoning: string };
+  fraudIndicators?: { riskLevel: string; observations: string[] };
+  claimFilingChecklist: string[];
+  recommendedActions: string[];
+  confidenceLevel: number;
+  urgencyLevel: string;
+  additionalNotes: string;
 }
 interface ClaimForm {
   incidentType: string; dateOfIncident: string; description: string; location: string; policyType: string;
@@ -146,11 +159,130 @@ export function AccidentClaimAnalyzer() {
         inlineData: { mimeType: getMediaType(p.file), data: await fileToBase64(p.file) }
       })));
 
-      const systemPrompt = `You are an expert insurance damage assessor with 20+ years of experience. Analyze the provided accident/damage photographs and return ONLY valid JSON (no markdown, no extra text, no code fences) with this exact structure:
-{"damageSummary":"2-3 sentence overview of all visible damage","damageItems":[{"item":"specific damaged component","severity":"Low | Medium | High | Total Loss","estimatedCostINR":number,"repairType":"Repair | Replace | Inspect","notes":"specific observation"}],"totalEstimatedClaimINR":number,"claimFilingChecklist":["array of required documents and steps"],"recommendedActions":["array of immediate next steps"],"confidenceLevel":number between 0 and 100,"urgencyLevel":"Immediate | Within 24hrs | Within 7 days | Non-urgent","additionalNotes":"anything else the claimant should know"}
-Base all cost estimates on current Indian market rates (INR).`;
+      const systemPrompt = `You are a senior motor/property insurance claim adjuster with 25+ years of field experience in India. You have deep expertise in IRDAI regulations, Indian auto repair market pricing, and forensic damage assessment.
 
-      const userText = `Incident Type: ${form.incidentType}\nDate: ${form.dateOfIncident}\nDescription: ${form.description}\nLocation: ${form.location}\nPolicy Type: ${form.policyType}\n\nPlease analyze the uploaded damage photographs and provide your assessment.`;
+Analyze the provided accident/damage photographs with extreme detail and precision. Return ONLY valid JSON — no markdown, no code fences, no extra text.
+
+CRITICAL: All costs MUST be in Indian Rupees (INR). A typical minor accident claim ranges from ₹25,000 to ₹1,50,000. Major accidents can be ₹2,00,000 to ₹10,00,000+. DO NOT give tiny amounts like ₹50 or ₹100 — these are REAL insurance claims worth thousands of rupees.
+
+JSON structure (all fields required):
+{
+  "damageSummary": "3-4 sentence professional overview: describe what you see, the nature and pattern of impact/damage, overall severity, and whether damage is consistent with the reported incident type",
+  "vehicleInfo": {
+    "detectedMake": "vehicle make if visible, else null",
+    "detectedModel": "vehicle model if visible, else null",
+    "detectedColor": "color if visible, else null",
+    "registrationVisible": "partial/full plate if visible, else null",
+    "vehicleAge": "estimated age from condition/model, else null"
+  },
+  "impactAnalysis": {
+    "primaryImpactZone": "exact location e.g. front-left corner, rear center",
+    "impactDirection": "e.g. head-on, rear-end, side-swipe, rollover",
+    "estimatedSpeed": "low (<40kmph) | medium (40-80kmph) | high (>80kmph)",
+    "damagePattern": "describe the pattern and what it indicates about the collision"
+  },
+  "damageItems": [
+    {
+      "item": "exact component name e.g. Front Bumper Assembly",
+      "severity": "Low | Medium | High | Total Loss",
+      "estimatedCostINR": <MUST be realistic 4-6 digit number in thousands, e.g. 18500 for bumper, 32000 for headlight>,
+      "laborCostINR": <realistic labor cost in thousands, e.g. 4500, 8200>,
+      "repairType": "Repair | Replace | Inspect",
+      "partType": "OEM | Aftermarket | Either",
+      "notes": "specific technical observation about this component's damage"
+    }
+  ],
+  "totalEstimatedClaimINR": <sum of ALL parts + labor - MUST be realistic total in thousands, minimum 25000 for minor damage>,
+  "laborTotalINR": <total labor across all items>,
+  "partsTotalINR": <total parts cost>,
+  "depreciationNote": "estimated depreciation deduction based on vehicle age if applicable",
+  "repairTimelineDays": <realistic number of days for full repair>,
+  "totalLossAssessment": {
+    "isTotalLoss": true | false,
+    "reasoning": "explain why or why not based on repair cost vs IDV"
+  },
+  "fraudIndicators": {
+    "riskLevel": "Low | Medium | High",
+    "observations": ["list any inconsistencies or suspicious patterns, or state 'No suspicious indicators detected'"]
+  },
+  "claimFilingChecklist": [
+    "specific document or step required"
+  ],
+  "recommendedActions": [
+    "specific, actionable step with timing"
+  ],
+  "confidenceLevel": <number 60-98 based on image quality and visibility>,
+  "urgencyLevel": "Immediate | Within 24hrs | Within 7 days | Non-urgent",
+  "additionalNotes": "any IRDAI compliance notes, coverage caveats, or important observations"
+}
+
+REALISTIC PRICING GUIDELINES (2024-25 Indian market - ALL IN RUPEES):
+
+BODY PARTS:
+- Front/Rear Bumper: Repair ₹8,000–18,000 | Replace ₹18,000–52,000 (depends on car segment)
+- Headlight Assembly: ₹12,000–45,000 (OEM), ₹8,000–25,000 (aftermarket)
+- Tail Light Assembly: ₹8,000–28,000
+- Hood/Bonnet: Repair ₹12,000–28,000 | Replace ₹28,000–95,000
+- Fender/Wing: Repair ₹8,000–22,000 | Replace ₹22,000–75,000
+- Door Panel: Repair ₹10,000–25,000 | Replace ₹35,000–1,20,000
+- Windshield: Replace ₹12,000–45,000
+- Side Mirror: Replace ₹3,500–18,000
+- Grille: Replace ₹5,000–25,000
+
+MECHANICAL:
+- Radiator: Replace ₹15,000–48,000
+- AC Condenser: Replace ₹12,000–35,000
+- Suspension Components: ₹8,000–45,000 per corner
+- Brake System: ₹15,000–60,000
+- Airbag Replacement: ₹25,000–75,000 per unit
+- Steering System: ₹20,000–80,000
+- Engine Damage: Minor ₹50,000–1,50,000 | Major ₹2,00,000–8,00,000
+- Transmission: ₹80,000–3,50,000
+
+STRUCTURAL:
+- Chassis/Frame Damage: ₹50,000–3,00,000
+- Pillar Damage: ₹40,000–1,50,000
+- Roof Panel: ₹60,000–2,00,000
+
+PAINT & FINISHING:
+- Single Panel Paint: ₹8,000–18,000
+- Full Body Paint: ₹35,000–1,20,000
+- Dent Removal (PDR): ₹3,000–12,000 per panel
+
+LABOR RATES:
+- Authorized Service Center: ₹800–1,800/hour
+- Multi-brand Workshop: ₹500–1,200/hour
+- Typical repair: 8-40 labor hours depending on complexity
+
+EXAMPLE REALISTIC ESTIMATES:
+- Minor fender bender: ₹35,000–85,000
+- Moderate front-end collision: ₹1,20,000–2,80,000
+- Severe accident with airbag deployment: ₹2,50,000–6,50,000
+- Major structural damage: ₹4,00,000–12,00,000+
+
+IMPORTANT: 
+1. Each damaged part should cost THOUSANDS of rupees, not tens or hundreds
+2. Total claim should be MINIMUM ₹25,000 even for very minor damage
+3. Use specific amounts like ₹18,750 or ₹42,300, not round numbers
+4. Labor should be 20-35% of total parts cost typically
+5. Consider car segment (hatchback vs sedan vs SUV vs luxury) for pricing`;
+
+      const userText = `Incident Type: ${form.incidentType}
+Date of Incident: ${form.dateOfIncident}
+Location: ${form.location || 'Not specified'}
+Policy Type: ${form.policyType || 'Not specified'}
+Claimant Description: ${form.description || 'No description provided'}
+Number of photos uploaded: ${photos.length}
+
+IMPORTANT INSTRUCTIONS:
+1. Carefully examine ALL uploaded photos from every angle
+2. Identify EVERY damaged component visible — missing a damaged part means the claimant is undercompensated
+3. Use REALISTIC Indian market prices in THOUSANDS of rupees (₹)
+4. A typical minor accident costs ₹40,000-₹1,00,000 to repair
+5. Each damaged part (bumper, headlight, hood, etc.) costs thousands, not hundreds
+6. Example: Front bumper replacement = ₹22,000-₹45,000, not ₹50 or ₹500
+
+Provide a detailed, professional assessment suitable for submission to an insurance company.`;
 
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -186,19 +318,30 @@ Base all cost estimates on current Indian market rates (INR).`;
       toast.error(`Analysis failed: ${err.message}`);
       // Provide demo result on error so UI can still be tested
       setResult({
-        damageSummary: 'Analysis could not be completed via API. This is a demo result showing the UI capabilities. In production, the AI would analyze your uploaded photos and provide real damage assessments.',
+        damageSummary: 'Analysis could not be completed via API. This is a demo result showing the UI capabilities. In production, the AI would analyze your uploaded photos and provide real damage assessments with realistic Indian market pricing.',
+        vehicleInfo: { detectedMake: 'Maruti Suzuki', detectedModel: 'Swift', detectedColor: 'Silver', registrationVisible: 'KA-01-XX-1234', vehicleAge: '3-4 years' },
+        impactAnalysis: { primaryImpactZone: 'Front-left corner', impactDirection: 'Oblique frontal impact', estimatedSpeed: 'medium (40-60 kmph)', damagePattern: 'Concentrated damage to left front quarter with secondary impact marks on bumper center' },
         damageItems: [
-          { item: 'Front Bumper', severity: 'High', estimatedCostINR: 25000, repairType: 'Replace', notes: 'Significant deformation detected' },
-          { item: 'Headlight Assembly (Left)', severity: 'Total Loss', estimatedCostINR: 15000, repairType: 'Replace', notes: 'Completely shattered' },
-          { item: 'Hood Panel', severity: 'Medium', estimatedCostINR: 18000, repairType: 'Repair', notes: 'Dents and paint damage' },
-          { item: 'Fender (Left)', severity: 'Low', estimatedCostINR: 8000, repairType: 'Repair', notes: 'Minor scratches' },
+          { item: 'Front Bumper Assembly', severity: 'High', estimatedCostINR: 28500, laborCostINR: 6200, repairType: 'Replace', partType: 'OEM', notes: 'Significant deformation and cracks, mounting brackets damaged' },
+          { item: 'Headlight Assembly (Left)', severity: 'Total Loss', estimatedCostINR: 18750, laborCostINR: 2800, repairType: 'Replace', partType: 'OEM', notes: 'Lens completely shattered, internal reflector damaged' },
+          { item: 'Hood Panel', severity: 'Medium', estimatedCostINR: 22400, laborCostINR: 8500, repairType: 'Repair', partType: 'Either', notes: 'Multiple dents and paint damage, no structural compromise' },
+          { item: 'Left Fender', severity: 'Medium', estimatedCostINR: 15200, laborCostINR: 5400, repairType: 'Replace', partType: 'Aftermarket', notes: 'Deep scratches and minor deformation' },
+          { item: 'Front Grille', severity: 'High', estimatedCostINR: 8900, laborCostINR: 1500, repairType: 'Replace', partType: 'Aftermarket', notes: 'Multiple broken slats' },
+          { item: 'Left Side Mirror', severity: 'Low', estimatedCostINR: 4200, laborCostINR: 800, repairType: 'Replace', partType: 'Aftermarket', notes: 'Housing cracked, glass intact' },
+          { item: 'Paint & Finishing (3 panels)', severity: 'Medium', estimatedCostINR: 24600, laborCostINR: 12400, repairType: 'Repair', partType: 'Either', notes: 'Color matching and blending required' },
         ],
-        totalEstimatedClaimINR: 66000,
-        claimFilingChecklist: ['FIR Copy / Police Report', 'Driving License Copy', 'Vehicle RC Copy', 'Insurance Policy Document', 'Damage Photographs (multiple angles)', 'Repair Estimate from Authorized Workshop'],
-        recommendedActions: ['File FIR at nearest police station', 'Do not move vehicle if possible', 'Contact insurance helpline within 24 hours', 'Get repair estimate from network garage'],
-        confidenceLevel: 78,
+        totalEstimatedClaimINR: 159950,
+        laborTotalINR: 37600,
+        partsTotalINR: 122350,
+        depreciationNote: 'Estimated 15% depreciation applicable on parts (₹18,350) based on 3-4 year vehicle age',
+        repairTimelineDays: 7,
+        totalLossAssessment: { isTotalLoss: false, reasoning: 'Repair cost (₹1,59,950) is approximately 25-30% of estimated IDV. Vehicle is economically repairable.' },
+        fraudIndicators: { riskLevel: 'Low', observations: ['No suspicious indicators detected', 'Damage pattern consistent with reported incident', 'No signs of pre-existing damage'] },
+        claimFilingChecklist: ['FIR Copy / Police Report (if applicable)', 'Driving License Copy', 'Vehicle RC Copy', 'Insurance Policy Document', 'Damage Photographs (multiple angles)', 'Repair Estimate from Authorized Workshop', 'Claim Form (duly filled and signed)'],
+        recommendedActions: ['File FIR at nearest police station within 24 hours', 'Inform insurance company immediately via helpline', 'Do not move vehicle until surveyor inspection (if required)', 'Get repair estimate from network garage', 'Submit all documents within 7 days of incident'],
+        confidenceLevel: 82,
         urgencyLevel: 'Within 24hrs',
-        additionalNotes: 'This is a demo result. Add your Gemini API key in .env (VITE_GEMINI_API_KEY) for real AI analysis.'
+        additionalNotes: 'This is a demo result. Add your Gemini API key in .env (VITE_GEMINI_API_KEY) for real AI analysis with accurate damage assessment and realistic Indian market pricing.'
       });
       setAnalyzeProgress(100);
     } finally {
@@ -236,20 +379,49 @@ Base all cost estimates on current Indian market rates (INR).`;
     addLine(`Policy: ${form.policyType}`);
     addLine(`Description: ${form.description}`);
     y += 6;
+    if (result.vehicleInfo && (result.vehicleInfo.detectedMake || result.vehicleInfo.detectedColor)) {
+      addLine('VEHICLE DETAILS', 13, true);
+      if (result.vehicleInfo.detectedMake) addLine(`Make/Model: ${result.vehicleInfo.detectedMake} ${result.vehicleInfo.detectedModel || ''}`);
+      if (result.vehicleInfo.detectedColor) addLine(`Color: ${result.vehicleInfo.detectedColor}`);
+      if (result.vehicleInfo.vehicleAge) addLine(`Estimated Age: ${result.vehicleInfo.vehicleAge}`);
+      y += 6;
+    }
+    if (result.impactAnalysis) {
+      addLine('IMPACT ANALYSIS', 13, true);
+      if (result.impactAnalysis.primaryImpactZone) addLine(`Impact Zone: ${result.impactAnalysis.primaryImpactZone}`);
+      if (result.impactAnalysis.impactDirection) addLine(`Direction: ${result.impactAnalysis.impactDirection}`);
+      if (result.impactAnalysis.estimatedSpeed) addLine(`Estimated Speed: ${result.impactAnalysis.estimatedSpeed}`);
+      if (result.impactAnalysis.damagePattern) addLine(`Pattern: ${result.impactAnalysis.damagePattern}`);
+      y += 6;
+    }
     addLine('DAMAGE SUMMARY', 13, true);
     addLine(result.damageSummary);
     y += 6;
     addLine('DAMAGE BREAKDOWN', 13, true);
     result.damageItems.forEach((d, i) => {
-      addLine(`${i + 1}. ${d.item} — ${d.severity} — ${formatIndianRupees(d.estimatedCostINR)} — ${d.repairType}`);
+      addLine(`${i + 1}. ${d.item} — ${d.severity} — Parts: ${formatIndianRupees(d.estimatedCostINR)}${d.laborCostINR ? ` | Labour: ${formatIndianRupees(d.laborCostINR)}` : ''} — ${d.repairType}${d.partType ? ` (${d.partType})` : ''}`);
       if (d.notes) addLine(`   Notes: ${d.notes}`, 9);
     });
+    y += 4;
+    if (result.partsTotalINR) addLine(`Parts Subtotal: ${formatIndianRupees(result.partsTotalINR)}`);
+    if (result.laborTotalINR) addLine(`Labour Subtotal: ${formatIndianRupees(result.laborTotalINR)}`);
     y += 6;
     addLine(`TOTAL ESTIMATED CLAIM: ${formatIndianRupees(result.totalEstimatedClaimINR)}`, 14, true);
+    if (result.depreciationNote) addLine(`Depreciation Note: ${result.depreciationNote}`, 9);
+    if (result.repairTimelineDays) addLine(`Estimated Repair Time: ${result.repairTimelineDays} working days`);
     addLine(`Urgency: ${result.urgencyLevel}  |  AI Confidence: ${result.confidenceLevel}%`);
+    if (result.totalLossAssessment) {
+      y += 4;
+      addLine(`Total Loss: ${result.totalLossAssessment.isTotalLoss ? 'YES' : 'NO'} — ${result.totalLossAssessment.reasoning}`);
+    }
+    if (result.fraudIndicators) {
+      y += 4;
+      addLine(`Fraud Risk: ${result.fraudIndicators.riskLevel}`);
+      result.fraudIndicators.observations.forEach(o => addLine(`  • ${o}`, 9));
+    }
     y += 6;
     addLine('CLAIM FILING CHECKLIST', 13, true);
-    result.claimFilingChecklist.forEach((c, i) => addLine(`☐ ${c}`));
+    result.claimFilingChecklist.forEach((c) => addLine(`☐ ${c}`));
     y += 6;
     addLine('RECOMMENDED ACTIONS', 13, true);
     result.recommendedActions.forEach((a, i) => addLine(`${i + 1}. ${a}`));
@@ -416,52 +588,131 @@ Base all cost estimates on current Indian market rates (INR).`;
             </CardContent>
           </Card>
 
-          {/* 2. Damage Breakdown Table */}
+          {/* 2. Vehicle + Impact Info */}
+          {(result.vehicleInfo || result.impactAnalysis) && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {result.vehicleInfo && (result.vehicleInfo.detectedMake || result.vehicleInfo.detectedColor) && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Shield className="w-4 h-4 text-blue-500" /> Vehicle Details</CardTitle></CardHeader>
+                  <CardContent className="space-y-1.5 text-sm">
+                    {result.vehicleInfo.detectedMake && <div className="flex justify-between"><span className="text-muted-foreground">Make/Model</span><span className="font-medium">{result.vehicleInfo.detectedMake} {result.vehicleInfo.detectedModel || ''}</span></div>}
+                    {result.vehicleInfo.detectedColor && <div className="flex justify-between"><span className="text-muted-foreground">Color</span><span className="font-medium">{result.vehicleInfo.detectedColor}</span></div>}
+                    {result.vehicleInfo.vehicleAge && <div className="flex justify-between"><span className="text-muted-foreground">Est. Age</span><span className="font-medium">{result.vehicleInfo.vehicleAge}</span></div>}
+                    {result.vehicleInfo.registrationVisible && <div className="flex justify-between"><span className="text-muted-foreground">Plate</span><span className="font-medium font-mono">{result.vehicleInfo.registrationVisible}</span></div>}
+                  </CardContent>
+                </Card>
+              )}
+              {result.impactAnalysis && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-orange-500" /> Impact Analysis</CardTitle></CardHeader>
+                  <CardContent className="space-y-1.5 text-sm">
+                    {result.impactAnalysis.primaryImpactZone && <div className="flex justify-between"><span className="text-muted-foreground">Impact Zone</span><span className="font-medium">{result.impactAnalysis.primaryImpactZone}</span></div>}
+                    {result.impactAnalysis.impactDirection && <div className="flex justify-between"><span className="text-muted-foreground">Direction</span><span className="font-medium">{result.impactAnalysis.impactDirection}</span></div>}
+                    {result.impactAnalysis.estimatedSpeed && <div className="flex justify-between"><span className="text-muted-foreground">Est. Speed</span><span className="font-medium">{result.impactAnalysis.estimatedSpeed}</span></div>}
+                    {result.impactAnalysis.damagePattern && <p className="text-muted-foreground text-xs mt-2 leading-relaxed">{result.impactAnalysis.damagePattern}</p>}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* 3. Damage Breakdown Table */}
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><ListChecks className="w-5 h-5" /> Damage Breakdown</CardTitle></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b">
-                    <th className="text-left py-3 px-2 font-semibold">Item</th><th className="text-left py-3 px-2 font-semibold">Severity</th>
-                    <th className="text-right py-3 px-2 font-semibold">Est. Cost (INR)</th><th className="text-left py-3 px-2 font-semibold">Action</th>
-                    <th className="text-left py-3 px-2 font-semibold">Notes</th>
+                    <th className="text-left py-3 px-2 font-semibold">Component</th>
+                    <th className="text-left py-3 px-2 font-semibold">Severity</th>
+                    <th className="text-right py-3 px-2 font-semibold">Parts (INR)</th>
+                    <th className="text-right py-3 px-2 font-semibold">Labour (INR)</th>
+                    <th className="text-left py-3 px-2 font-semibold">Action</th>
+                    <th className="text-left py-3 px-2 font-semibold hidden md:table-cell">Notes</th>
                   </tr></thead>
                   <tbody>
                     {result.damageItems.map((d, i) => (
                       <tr key={i} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-2 font-medium">{d.item}</td>
+                        <td className="py-3 px-2 font-medium">{d.item}{d.partType && <span className="ml-1 text-xs text-muted-foreground">({d.partType})</span>}</td>
                         <td className="py-3 px-2"><Badge className={`${severityColor(d.severity)} border text-xs`}>{d.severity}</Badge></td>
                         <td className="py-3 px-2 text-right font-semibold">{formatIndianRupees(d.estimatedCostINR)}</td>
+                        <td className="py-3 px-2 text-right text-muted-foreground">{d.laborCostINR ? formatIndianRupees(d.laborCostINR) : '—'}</td>
                         <td className="py-3 px-2"><Badge variant="outline" className="text-xs">{d.repairType}</Badge></td>
-                        <td className="py-3 px-2 text-muted-foreground text-xs max-w-[200px]">{d.notes}</td>
+                        <td className="py-3 px-2 text-muted-foreground text-xs max-w-[200px] hidden md:table-cell">{d.notes}</td>
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-border bg-muted/20">
+                      <td colSpan={2} className="py-3 px-2 font-bold">Total</td>
+                      <td className="py-3 px-2 text-right font-bold">{result.partsTotalINR ? formatIndianRupees(result.partsTotalINR) : '—'}</td>
+                      <td className="py-3 px-2 text-right font-bold">{result.laborTotalINR ? formatIndianRupees(result.laborTotalINR) : '—'}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
+              {result.repairTimelineDays && (
+                <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1"><Clock className="w-3 h-3" /> Estimated repair time: {result.repairTimelineDays} working days</p>
+              )}
             </CardContent>
           </Card>
 
-          {/* 3. Total Claim + 4. Urgency */}
-          <div className="grid sm:grid-cols-2 gap-6">
-            <Card className="bg-gradient-to-br from-[#0066FF]/10 to-[#8B5CF6]/10 border-[#0066FF]/20">
+          {/* 4. Total Claim + Urgency + Total Loss */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="bg-gradient-to-br from-[#0066FF]/10 to-[#8B5CF6]/10 border-[#0066FF]/20 sm:col-span-2 lg:col-span-1">
               <CardContent className="py-8 text-center">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Total Estimated Claim Value</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Estimated Claim</p>
                 <p className="text-4xl font-bold bg-gradient-to-r from-[#0066FF] to-[#8B5CF6] bg-clip-text text-transparent">
                   {formatIndianRupees(result.totalEstimatedClaimINR)}
                 </p>
+                {result.depreciationNote && <p className="text-xs text-muted-foreground mt-2">{result.depreciationNote}</p>}
               </CardContent>
             </Card>
             <Card>
               <CardContent className="py-8 text-center space-y-3">
                 <p className="text-sm font-medium text-muted-foreground">Urgency Level</p>
-                <Badge className={`${urgencyColor(result.urgencyLevel)} text-lg px-6 py-2`}>{result.urgencyLevel}</Badge>
+                <Badge className={`${urgencyColor(result.urgencyLevel)} text-base px-5 py-1.5`}>{result.urgencyLevel}</Badge>
               </CardContent>
             </Card>
+            {result.totalLossAssessment && (
+              <Card className={result.totalLossAssessment.isTotalLoss ? 'border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10' : 'border-green-300 dark:border-green-800 bg-green-50/50 dark:bg-green-950/10'}>
+                <CardContent className="py-6 text-center space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Total Loss Assessment</p>
+                  <Badge className={result.totalLossAssessment.isTotalLoss ? 'bg-red-500 text-white text-sm px-4 py-1' : 'bg-green-500 text-white text-sm px-4 py-1'}>
+                    {result.totalLossAssessment.isTotalLoss ? 'Total Loss' : 'Repairable'}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{result.totalLossAssessment.reasoning}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* 5. Checklist + 6. Actions */}
+          {/* 5. Fraud Indicators */}
+          {result.fraudIndicators && (
+            <Card className={result.fraudIndicators.riskLevel === 'High' ? 'border-red-300 dark:border-red-800' : result.fraudIndicators.riskLevel === 'Medium' ? 'border-amber-300 dark:border-amber-800' : 'border-green-300 dark:border-green-800'}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Shield className={`w-4 h-4 ${result.fraudIndicators.riskLevel === 'High' ? 'text-red-500' : result.fraudIndicators.riskLevel === 'Medium' ? 'text-amber-500' : 'text-green-500'}`} />
+                  Fraud Risk Assessment
+                  <Badge className={`ml-auto text-xs ${result.fraudIndicators.riskLevel === 'High' ? 'bg-red-500 text-white' : result.fraudIndicators.riskLevel === 'Medium' ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
+                    {result.fraudIndicators.riskLevel} Risk
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-1">
+                  {result.fraudIndicators.observations.map((obs, i) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="mt-1 flex-shrink-0">•</span>{obs}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 6. Checklist + Actions */}
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="w-5 h-5 text-green-600" /> Claim Filing Checklist</CardTitle></CardHeader>

@@ -1015,7 +1015,7 @@ export function DocumentProcessor() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-background border border-border rounded-xl max-w-6xl w-full h-[85vh] flex flex-col shadow-2xl"
+            className="bg-background border border-border rounded-xl max-w-5xl w-full max-h-[72vh] flex flex-col shadow-2xl overflow-hidden"
           >
             {/* Modal Header - Compact */}
             <div className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -1037,8 +1037,8 @@ export function DocumentProcessor() {
             </div>
 
             {/* Modal Content - Three Column Layout */}
-            <div className="flex-1 overflow-hidden p-4">
-              <div className="grid grid-cols-3 gap-4 h-full">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 scroll-smooth">
+              <div className="grid grid-cols-3 gap-4 min-h-full">
                 
                 {/* Left Column - Quick Overview */}
                 <div className="space-y-4">
@@ -1099,8 +1099,8 @@ export function DocumentProcessor() {
                         AI Analysis
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0 h-full">
-                      <div className="bg-muted/30 rounded-lg p-3 h-[calc(100%-2rem)] overflow-y-auto">
+                    <CardContent className="pt-0">
+                      <div className="bg-muted/30 rounded-lg p-3 max-h-[400px] overflow-y-auto">
                         <p className="text-sm leading-relaxed">{result.justification}</p>
                       </div>
                     </CardContent>
@@ -1118,7 +1118,7 @@ export function DocumentProcessor() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       {result.coverageDetails && result.coverageDetails.length > 0 ? (
-                        <div className="space-y-2 h-[calc(100%-2rem)] overflow-y-auto">
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
                           {result.coverageDetails.map((item, index) => (
                             <div key={index} className="p-2 bg-muted/20 rounded border border-border/50">
                               <div className="flex items-center justify-between mb-1">

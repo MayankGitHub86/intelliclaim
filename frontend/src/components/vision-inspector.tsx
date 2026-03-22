@@ -912,18 +912,18 @@ Focus specifically on insurance-related content and provide detailed analysis fo
 
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              Document Image - Full Size View
+        <DialogContent className="w-[45vw] max-w-[280px] max-h-[45vh] p-0 gap-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-1.5 py-0.5 border-b shrink-0 bg-background">
+            <DialogTitle className="flex items-center gap-1 text-[9px] pr-5">
+              <Eye className="w-2 h-2" />
+              Image
             </DialogTitle>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="overflow-y-scroll flex-1 p-1 scroll-smooth" style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af #f3f4f6' }}>
             <img
               src={selectedImage}
-              alt="Full size document"
-              className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+              alt="Document"
+              className="w-full h-auto object-contain rounded-sm"
             />
           </div>
         </DialogContent>
@@ -931,45 +931,45 @@ Focus specifically on insurance-related content and provide detailed analysis fo
 
       {/* Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Detailed Analysis Report
+        <DialogContent className="w-[45vw] max-w-[280px] max-h-[45vh] p-0 gap-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-1.5 py-0.5 border-b shrink-0 bg-background">
+            <DialogTitle className="flex items-center gap-1 text-[9px] pr-5">
+              <FileText className="w-2 h-2" />
+              Report
             </DialogTitle>
           </DialogHeader>
-          <div className="mt-4 space-y-4">
+          <div className="overflow-y-scroll flex-1 p-1 space-y-0.5 scroll-smooth" style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af #f3f4f6' }}>
             {visionAnalysis && (
               <>
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <h4 className="font-semibold mb-2">Full Text Content</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {visionAnalysis.extracted_data?.text_content || 'No text content extracted'}
-                  </p>
+                <div className="p-0.5 bg-blue-50 dark:bg-blue-950/20 rounded-sm">
+                  <h4 className="font-semibold mb-0.5 text-[7px]">Text</h4>
+                  <div className="text-[6px] text-muted-foreground whitespace-pre-wrap break-words leading-tight max-h-[50px] overflow-y-scroll scroll-smooth" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db #f9fafb' }}>
+                    {visionAnalysis.extracted_data?.text_content || 'No text'}
+                  </div>
                 </div>
                 
-                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <h4 className="font-semibold mb-2">AI Reasoning</h4>
-                  <p className="text-sm text-muted-foreground">
+                <div className="p-0.5 bg-green-50 dark:bg-green-950/20 rounded-sm">
+                  <h4 className="font-semibold mb-0.5 text-[7px]">AI</h4>
+                  <p className="text-[6px] text-muted-foreground break-words leading-tight">
                     {visionAnalysis.ai_reasoning}
                   </p>
                 </div>
                 
                 {visionAnalysis.metadata?.api_response && (
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Technical Details</h4>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="font-medium">Service:</span> {visionAnalysis.metadata.api_response.ai_service}
+                  <div className="p-0.5 bg-gray-50 dark:bg-gray-800/50 rounded-sm">
+                    <h4 className="font-semibold mb-0.5 text-[7px]">Info</h4>
+                    <div className="space-y-0.5 text-[6px]">
+                      <div className="break-words truncate">
+                        <span className="font-medium">Svc:</span> <span className="text-muted-foreground">{visionAnalysis.metadata.api_response.ai_service}</span>
                       </div>
-                      <div>
-                        <span className="font-medium">Model:</span> {visionAnalysis.metadata.api_response.model_used}
+                      <div className="break-words truncate">
+                        <span className="font-medium">Mdl:</span> <span className="text-muted-foreground">{visionAnalysis.metadata.api_response.model_used}</span>
                       </div>
-                      <div>
-                        <span className="font-medium">Document ID:</span> {documentId}
+                      <div className="break-words truncate">
+                        <span className="font-medium">ID:</span> <span className="text-muted-foreground text-[5px]">{documentId}</span>
                       </div>
-                      <div>
-                        <span className="font-medium">File:</span> {selectedFile?.name}
+                      <div className="break-words truncate">
+                        <span className="font-medium">File:</span> <span className="text-muted-foreground text-[5px]">{selectedFile?.name}</span>
                       </div>
                     </div>
                   </div>
