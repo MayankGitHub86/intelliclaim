@@ -203,7 +203,6 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
   ];
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50/30 dark:to-blue-950/30 overflow-x-hidden">
       {/* Header */}
       <motion.header
@@ -718,6 +717,5 @@ export function LandingPage({ onEnterApp, onShowAuth, isAuthenticated, onAuthent
       </AnimatePresence>
       </div>
     </div>
-    </GoogleOAuthProvider>
   );
 }

@@ -138,8 +138,7 @@ export function Auth({ onAuthenticated, onBackToLanding }: AuthProps) {
   ];
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen bg-gradient-to-br from-[#0066FF] via-[#8B5CF6] to-[#667eea] relative overflow-hidden flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0066FF] via-[#8B5CF6] to-[#667eea] relative overflow-hidden flex items-center justify-center p-4">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <motion.div

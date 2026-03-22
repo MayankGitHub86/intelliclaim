@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './components/theme-provider';
 import { Auth } from './components/auth';
-import { LandingPage } from './components/landing-page';
+import { EnhancedLandingPage } from './components/enhanced-landing-page';
 import { DocumentProcessor } from './components/document-processor';
 import { WorkflowBuilder } from './components/workflow-builder';
 import { VisionInspector } from './components/vision-inspector';
@@ -15,15 +15,18 @@ import { ChatAssistant } from './components/chat-assistant';
 import { ErrorFallback, useErrorHandler } from './components/ErrorBoundary';
 import { apiClient, API_CONFIG } from './config/api';
 import { toast } from 'sonner';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
-type Page = 'landing' | 'auth' | 'documents' | 'workflows' | 'vision' | 'settings';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+type Page = 'landing' | 'auth' | 'documents' | 'dashboard' | 'workflows' | 'vision' | 'accident-analyzer' | 'settings';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('landing');
+  const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isTrialUser, setIsTrialUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { handleError, resetError, handleAsyncError } = useErrorHandler();
 
   // Check authentication status on app load
@@ -161,17 +164,18 @@ export default function App() {
   }
 
   const pageComponents = {
-    landing: <LandingPage
+    landing: <EnhancedLandingPage
       isAuthenticated={isAuthenticated}
-      onAuthenticated={handleAuthenticated}
       onEnterApp={handleStartTrial}
-      onShowAuth={() => setCurrentPage('auth')}
+      openAuthModal={() => setCurrentPage('auth')}
+      onAuthenticated={handleAuthenticated}
     />,
     auth: <Auth
       onAuthenticated={handleAuthenticated}
       onBackToLanding={() => setCurrentPage('landing')}
     />,
     documents: <DocumentProcessor />,
+    dashboard: <DocumentProcessor />, // Alias for dashboard
     workflows: <WorkflowBuilder />,
     vision: <VisionInspector />,
     'accident-analyzer': <AccidentClaimAnalyzer />,
@@ -180,18 +184,20 @@ export default function App() {
       onUpgrade={() => setCurrentPage('landing')}
       userProfile={userProfile}
     />
-  }; return (
+  };
+ return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <ThemeProvider defaultTheme="light" storageKey="intelliclaim-theme">
       <div className="min-h-screen bg-background">
         {currentPage === 'landing' ? (
-          pageComponents.landing
+          (pageComponents as any).landing
         ) : currentPage === 'auth' ? (
-          pageComponents.auth
+          (pageComponents as any).auth
         ) : (
           <div className="flex min-h-screen">
             <Navigation
               currentPage={currentPage}
-              onPageChange={setCurrentPage}
+              onPageChange={(page) => setCurrentPage(page as Page)}
               onBackToLanding={() => {
                 setCurrentPage('landing');
                 setIsTrialUser(false);
@@ -210,7 +216,7 @@ export default function App() {
                   transition={{ duration: 0.3 }}
                   className="min-h-full"
                 >
-                  {pageComponents[currentPage]}
+                  {(pageComponents as any)[currentPage]}
                 </motion.div>
               </AnimatePresence>
             </main>
@@ -220,5 +226,6 @@ export default function App() {
         <ChatAssistant />
       </div>
     </ThemeProvider>
+    </GoogleOAuthProvider>
   );
 }

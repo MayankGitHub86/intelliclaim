@@ -1,5 +1,9 @@
 // API Configuration for IntelliClaim Frontend
-const API_BASE_URL = 'http://localhost:8000';
+// In development, this points to localhost via Vite proxy or direct call
+// In production, we use the relative path /api which is proxied via vercel.json
+const API_BASE_URL = import.meta.env.MODE === 'production' 
+  ? '/api' 
+  : (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
 
 // API Endpoints Configuration
 export const API_CONFIG = {
