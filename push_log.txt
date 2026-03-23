@@ -1,0 +1,124 @@
+git : remote: error: GH013: 
+Repository rule violations 
+found for refs/heads/main.  
+      
+At line:1 char:1
++ git push origin main 
+--force 2>&1 | Out-File 
+-Encoding ascii -FilePat ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (remot  
+  e: error: ...s/main.      
+      :String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+remote: 
+remote: - GITHUB PUSH 
+PROTECTION        
+remote:   ??????????????????
+????????????????????????????
+????????????????????????????
+????????????????????????????
+?????????????????????       
+ 
+remote:     Resolve the 
+following violations before 
+pushing again        
+remote: 
+remote:     - Push cannot 
+contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how 
+to resolve a blocked push   
+     
+remote:      https://docs.gi
+thub.com/code-security/secre
+t-scanning/working-with-secr
+et-scanning-and-push-protect
+ion/working-with-push-protec
+tion-from-the-command-line#r
+esolving-a-blocked-push     
+   
+remote:             
+remote:      (?) This 
+repository does not have 
+Secret Scanning enabled, 
+but is eligible. Enable 
+Secret Scanning to view and 
+manage detected secrets.    
+    
+remote:      Visit the 
+repository settings page, ht
+tps://github.com/MayankGitHu
+b86/intelliclaim/settings/se
+curity_analysis        
+remote:             
+remote:             
+remote:       ?????? Google 
+OAuth Client ID ????????????
+????????????????????????????
+????????????????????????????
+????????????????        
+remote:        locations:   
+     
+remote:          - commit: 5
+2c7e60392b6a2598d83959c3c14f
+72a2d2a5621        
+remote:            path: int
+elliclaim-vision-backend/.en
+v:26        
+remote:             
+remote:        (?) To push, 
+remove secret from 
+commit(s) or follow this 
+URL to allow the secret.    
+    
+remote:        https://githu
+b.com/MayankGitHub86/intelli
+claim/security/secret-scanni
+ng/unblock-secret/3BK7CstUhC
+CXJpdt3kb6nFh5Zx9        
+remote:             
+remote:             
+remote:       ?????? Google 
+OAuth Client Secret ????????
+????????????????????????????
+????????????????????????????
+????????        
+remote:        locations:   
+     
+remote:          - commit: 5
+2c7e60392b6a2598d83959c3c14f
+72a2d2a5621        
+remote:            path: int
+elliclaim-vision-backend/.en
+v:27        
+remote:             
+remote:        (?) To push, 
+remove secret from 
+commit(s) or follow this 
+URL to allow the secret.    
+    
+remote:        https://githu
+b.com/MayankGitHub86/intelli
+claim/security/secret-scanni
+ng/unblock-secret/3BK7CwdSc1
+Os9rDq2bynOYVN1mq        
+remote:             
+remote: 
+remote: 
+To https://github.com/Mayank
+GitHub86/intelliclaim.git
+ ! [remote rejected] main 
+-> main (push declined due 
+to repository rule 
+violations)
+error: failed to push some 
+refs to 'https://github.com/
+MayankGitHub86/intelliclaim.
+git'
