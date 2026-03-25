@@ -1,10 +1,9 @@
 // API Configuration for IntelliClaim Frontend
+// Get API URL from environment variable or fallback to localhost
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 // Toggle this to true to switch to the Java Microservices Gateway
 const USE_JAVA_GATEWAY = false;
-
-const API_BASE_URL = USE_JAVA_GATEWAY
-  ? 'http://localhost:8080'
-  : 'http://localhost:8000';
 
 // API Endpoints Configuration
 export const API_CONFIG = {

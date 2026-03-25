@@ -38,14 +38,29 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React/Vite dev servers
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS middleware - Allow all origins for production deployment
+# In production, you should restrict this to your specific domain
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+
+if ALLOWED_ORIGINS == "*":
+    # Allow all origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,  # Must be False when allow_origins is ["*"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # Allow specific origins
+    origins_list = ALLOWED_ORIGINS.split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Security
 security = HTTPBearer()
